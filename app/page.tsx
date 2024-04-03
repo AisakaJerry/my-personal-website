@@ -16,15 +16,11 @@ export default function Home() {
             rel="noopener noreferrer"
           >
             By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
           </a>
+          {
+            // add a jpeg image under this div
+            <img src="/rowlet.jpg" alt="Image" className="h-40 w-23" />
+          }
         </div>
       </div>
 
