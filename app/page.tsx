@@ -16,8 +16,8 @@ export default function Home() {
         <FluidSim />
       </div>
 
-      {/* Content overlay */}
-      <div className="relative z-10 flex flex-col min-h-screen">
+      {/* Content overlay — pointer-events-none so clicks reach the canvas below */}
+      <div className="relative z-10 flex flex-col min-h-screen pointer-events-none">
         {/* Hero */}
         <div className="flex flex-col items-center justify-center flex-1 px-6 pt-24 pb-12 text-center">
           <h1 className="text-5xl font-bold tracking-tight mb-2 drop-shadow-lg">
@@ -30,7 +30,7 @@ export default function Home() {
 
         {/* Subdomain cards */}
         <div className="px-6 pb-16">
-          <div className="max-w-lg mx-auto grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="max-w-lg mx-auto grid grid-cols-1 sm:grid-cols-3 gap-3 pointer-events-auto">
             {LINKS.map(({ href, label, desc }) => (
               <a
                 key={href}
