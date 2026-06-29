@@ -2,53 +2,14 @@
 
 import { useEffect, useRef } from "react";
 
-// Simulation grid resolution — compute runs at this size, render upscales to viewport.
-const SW = 256, SH = 256;
+// 1-D wave equation on a horizontal height field.
+// surf[x] = screen-Y of the water surface at column x  (0 = top, 1 = bottom).
+// Resting position: 0.5 (mid-screen).  Wave propagates left/right.
+const N    = 512;
+const C2   = 0.42;   // wave-speed²  — must be < 0.5 for stability
+const DAMP = 0.993;  // per-step energy loss
 
-// ---------------------------------------------------------------------------
-// Wave equation compute shader.
-// Uses three ping-pong storage buffers (prev, cur, next).
-// h_next = D * (2*h_cur - h_prev + C² * ∇²h_cur)
-// Stability: C² ≤ 0.5 in 2D. We use 0.40 for faster-looking ripples.
-// ---------------------------------------------------------------------------
-const WAVE = `
-@group(0) @binding(0) var<storage,read>       prev: array<f32>;
-@group(0) @binding(1) var<storage,read>       cur:  array<f32>;
-@group(0) @binding(2) var<storage,read_write> nxt:  array<f32>;
-
-fn s(x: i32, y: i32) -> f32 {
-  return cur[u32(clamp(y,0,${SH}-1)) * ${SW}u + u32(clamp(x,0,${SW}-1))];
-}
-
-@compute @workgroup_size(16,16)
-fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-  if (id.x >= ${SW}u || id.y >= ${SH}u) { return; }
-  let x = i32(id.x); let y = i32(id.y);
-  let i = id.y * ${SW}u + id.x;
-  let h   = s(x, y);
-  let lap = s(x-1,y) + s(x+1,y) + s(x,y-1) + s(x,y+1) - 4.0*h;
-  nxt[i] = 0.994 * (2.0*h - prev[i] + 0.40*lap);
-}`;
-
-// ---------------------------------------------------------------------------
-// Splat compute shader — Gaussian disturbance injected into a height buffer.
-// ---------------------------------------------------------------------------
-const SPLAT = `
-struct S { x: f32, y: f32, r: f32, str: f32 };
-@group(0) @binding(0) var<uniform>            u: S;
-@group(0) @binding(1) var<storage,read_write> h: array<f32>;
-
-@compute @workgroup_size(16,16)
-fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-  if (id.x >= ${SW}u || id.y >= ${SH}u) { return; }
-  let dx = f32(id.x)/f32(${SW}) - u.x;
-  let dy = f32(id.y)/f32(${SH}) - u.y;
-  h[id.y*${SW}u+id.x] += u.str * exp(-(dx*dx+dy*dy)/(u.r*u.r));
-}`;
-
-// ---------------------------------------------------------------------------
-// Fullscreen quad — just covers clip space.
-// ---------------------------------------------------------------------------
+// ── Fullscreen quad ────────────────────────────────────────────────────────
 const VERT = `
 @vertex
 fn main(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
@@ -56,172 +17,159 @@ fn main(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
   return vec4(p[i], 0., 1.);
 }`;
 
-// ---------------------------------------------------------------------------
-// Water surface fragment shader.
-// Reads height field directly from storage buffer (no texture needed).
-// Computes surface normal from height gradient → Phong shading.
-// Final color is blended over white page background.
-// ---------------------------------------------------------------------------
+// ── Side-view water renderer ───────────────────────────────────────────────
+// surf[] holds surface Y for each column; uv.y < surf[x] → air (white),
+// uv.y > surf[x] → water (blue gradient + caustics + specular).
 const FRAG = `
-@group(0) @binding(0) var<storage,read> h: array<f32>;
-@group(0) @binding(1) var<uniform>      dim: vec4<f32>; // canvas_w, canvas_h, _, _
-
-fn at(x: i32, y: i32) -> f32 {
-  return h[u32(clamp(y,0,${SH}-1)) * ${SW}u + u32(clamp(x,0,${SW}-1))];
-}
-
-// Bilinear sample of height field at a UV coordinate.
-fn sh(uv: vec2<f32>) -> f32 {
-  let p = uv * vec2(f32(${SW}), f32(${SH})) - 0.5;
-  let i = vec2<i32>(floor(p));
-  let f = fract(p);
-  return mix(
-    mix(at(i.x,   i.y),   at(i.x+1, i.y),   f.x),
-    mix(at(i.x,   i.y+1), at(i.x+1, i.y+1), f.x),
-    f.y
-  );
-}
+@group(0) @binding(0) var<storage,read> surf: array<f32>;
+@group(0) @binding(1) var<uniform>      dim:  vec4<f32>; // (w, h, 0, 0)
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-  let uv = pos.xy / dim.xy;
+  let uv  = pos.xy / dim.xy;          // (0,0)=top-left (1,1)=bot-right
+  let N   = i32(${N});
 
-  // Sample height and four neighbors to compute gradient.
-  let e  = 1.5 / f32(${SW});
-  let hC = sh(uv);
-  let nx = (sh(uv + vec2(-e, 0.)) - sh(uv + vec2(e, 0.))) * 6.0;
-  let ny = (sh(uv + vec2(0.,-e)) - sh(uv + vec2(0., e))) * 6.0;
-  let nrm = normalize(vec3(nx, ny, 1.0));
+  // Bilinear interpolate surface height at this x column.
+  let fx  = uv.x * f32(N - 1);
+  let xi  = i32(floor(fx));
+  let xf  = fract(fx);
+  let sy  = mix(surf[clamp(xi, 0, N-1)], surf[clamp(xi+1, 0, N-1)], xf);
 
-  // Light from slightly off-center overhead.
-  let lit  = normalize(vec3(-0.15, -0.25, 1.0));
-  let diff = clamp(dot(nrm, lit), 0.0, 1.0);
-  let spec = pow(clamp(dot(reflect(-lit, nrm), vec3(0.,0.,1.)), 0., 1.), 120.0);
+  // Signed distance from surface: positive = below = water.
+  let d   = uv.y - sy;
 
-  // Deep vs surface water color keyed by height.
-  let deep = vec3(0.02, 0.15, 0.48);
-  let surf = vec3(0.14, 0.48, 0.88);
-  var wc   = mix(deep, surf, clamp(hC * 4.0 + 0.5, 0., 1.));
+  // Surface slope → screen-space normal (for specular).
+  let hl  = surf[max(xi - 1, 0)];
+  let hr  = surf[min(xi + 2, N - 1)];
+  let slp = (hr - hl) * f32(N) * 0.25 * (dim.y / dim.x);
+  let nrm = normalize(vec2(-slp, 1.0));
+  let lit = normalize(vec2(0.3, -1.0));
+  let spec= pow(max(dot(nrm, lit), 0.0), 80.0);
 
-  // Diffuse shading + specular highlight + Fresnel rim.
-  wc = wc * (0.30 + 0.70 * diff)
-     + vec3(spec * 0.95)
-     + vec3(0.65, 0.82, 1.0) * pow(1.0 - nrm.z, 5.0) * 0.20;
+  // ── Air ──────────────────────────────────────────────────────────────────
+  if (d < -0.004) {
+    return vec4(1., 1., 1., 1.);
+  }
 
-  // White foam on very high crests.
-  wc = mix(wc, vec3(0.95, 0.98, 1.0), smoothstep(0.38, 0.58, hC));
+  // ── Surface transition band ───────────────────────────────────────────────
+  if (d < 0.004) {
+    let t  = (d + 0.004) / 0.008;
+    let sc = vec3(0.50, 0.79, 1.00) + spec * vec3(0.85, 0.93, 1.00);
+    return vec4(mix(vec3(1.), clamp(sc, vec3(0.), vec3(1.)), t), 1.);
+  }
 
-  // Blend 88% water over white page background.
-  return vec4(mix(vec3(1.0), wc, 0.88), 1.0);
+  // ── Water body ────────────────────────────────────────────────────────────
+  let shallow = vec3(0.17, 0.54, 0.96);
+  let deep    = vec3(0.02, 0.10, 0.42);
+  var wc      = mix(shallow, deep, clamp(d * 2.8, 0., 1.));
+
+  // Subsurface light scattering near the surface.
+  wc += exp(-d * 22.) * vec3(0.07, 0.11, 0.17);
+
+  // Caustic shimmer.
+  let caus = sin(pos.x * 0.055 + sy * 30.) * sin(pos.y * 0.08 - sy * 22.);
+  wc += clamp(caus, 0., 1.) * exp(-d * 16.) * 0.07;
+
+  return vec4(clamp(wc, vec3(0.), vec3(1.)), 1.);
 }`;
 
 type D = ReturnType<typeof Object.create>;
 
-export default function FluidSim() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const ptrRef    = useRef({ x: .5, y: .5, dx: 0, dy: 0, down: false });
-  const gyrRef    = useRef({ ax: 0, ay: 0 });
+export default function FluidSim({
+  onWaterline,
+}: {
+  onWaterline?: (surfaceY: number) => void;
+}) {
+  const canvasRef      = useRef<HTMLCanvasElement>(null);
+  const onWlRef        = useRef(onWaterline);
+  const ptrRef         = useRef({ x: 0.5, down: false });
+  const gyrRef         = useRef({ ax: 0 });
+
+  // Keep callback ref fresh without re-running the effect.
+  useEffect(() => { onWlRef.current = onWaterline; }, [onWaterline]);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
     let raf: number, stopped = false;
 
-    // Match WebGPU render target to actual display pixels.
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    async function init() {
+    // ── CPU wave buffers ─────────────────────────────────────────────────────
+    const prev = new Float32Array(N).fill(0.5);
+    const cur  = new Float32Array(N).fill(0.5);
+    const nxt  = new Float32Array(N);
+
+    function splat(x: number, str: number, r: number) {
+      for (let i = 0; i < N; i++) {
+        const dx = i / N - x;
+        cur[i] = Math.max(0.05, Math.min(0.95, cur[i] + str * Math.exp(-(dx * dx) / (r * r))));
+      }
+    }
+
+    function stepWave() {
+      for (let x = 0; x < N; x++) {
+        const l = cur[x > 0     ? x - 1 : 0];
+        const r = cur[x < N - 1 ? x + 1 : N - 1];
+        nxt[x] = Math.max(0.05, Math.min(0.95,
+          DAMP * (2 * cur[x] - prev[x] + C2 * (l - 2 * cur[x] + r))
+        ));
+      }
+      prev.set(cur);
+      cur.set(nxt);
+    }
+
+    // ── WebGPU setup ─────────────────────────────────────────────────────────
+    async function run() {
       const nav = navigator as D;
       if (!nav.gpu) return;
       const adapter: D = await nav.gpu.requestAdapter();
       if (!adapter) return;
       const dev: D = await adapter.requestDevice();
-      const q: D = dev.queue;
-
+      const q: D   = dev.queue;
       const ctx: D = canvas.getContext("webgpu");
       const fmt: string = nav.gpu.getPreferredCanvasFormat();
       ctx.configure({ device: dev, format: fmt, alphaMode: "opaque" });
 
-      const N = SW * SH;
-      const sb = (n: number) => dev.createBuffer({ size: n, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-      const ub = (n: number) => dev.createBuffer({ size: n, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-      const md = (code: string) => dev.createShaderModule({ code });
-      const cp = (code: string) => dev.createComputePipeline({ layout:"auto", compute:{ module:md(code), entryPoint:"main" }});
+      const surfBuf = dev.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+      const dimBuf  = dev.createBuffer({ size: 16,    usage: GPUBufferUsage.UNIFORM  | GPUBufferUsage.COPY_DST });
+      q.writeBuffer(dimBuf, 0, new Float32Array([canvas.width, canvas.height, 0, 0]));
 
-      // Three height buffers for ping-pong wave equation (needs prev + cur → next).
-      const hBuf   = [sb(N*4), sb(N*4), sb(N*4)];
-      const splatU = ub(16);
-      const dimU   = ub(16);
-
-      q.writeBuffer(dimU, 0, new Float32Array([canvas.width, canvas.height, 0, 0]));
-
-      const wavePL  = cp(WAVE);
-      const splatPL = cp(SPLAT);
-      const renPL   = dev.createRenderPipeline({
-        layout:   "auto",
-        vertex:   { module: md(VERT), entryPoint: "main" },
-        fragment: { module: md(FRAG), entryPoint: "main", targets: [{ format: fmt }] },
-        primitive:{ topology: "triangle-strip" },
+      const renPL = dev.createRenderPipeline({
+        layout:    "auto",
+        vertex:    { module: dev.createShaderModule({ code: VERT }), entryPoint: "main" },
+        fragment:  { module: dev.createShaderModule({ code: FRAG }), entryPoint: "main", targets: [{ format: fmt }] },
+        primitive: { topology: "triangle-strip" },
       });
 
-      const bg = (pl: D, entries: D[]) =>
-        dev.createBindGroup({ layout: pl.getBindGroupLayout(0), entries });
+      // Seed a couple of gentle startup ripples.
+      splat(0.30, 0.055, 0.040);
+      splat(0.72, 0.045, 0.035);
 
-      function splat(enc: D, bi: number, x: number, y: number, r: number, str: number) {
-        q.writeBuffer(splatU, 0, new Float32Array([x, y, r, str]));
-        const p = enc.beginComputePass();
-        p.setPipeline(splatPL);
-        p.setBindGroup(0, bg(splatPL, [
-          { binding:0, resource:{ buffer: splatU } },
-          { binding:1, resource:{ buffer: hBuf[bi] } },
-        ]));
-        p.dispatchWorkgroups(Math.ceil(SW/16), Math.ceil(SH/16));
-        p.end();
-      }
-
-      // Seed a few initial ripples so the water isn't completely flat on load.
-      const seed = dev.createCommandEncoder();
-      splat(seed, 1, 0.28, 0.38, 0.04, -2.0);
-      splat(seed, 1, 0.72, 0.62, 0.03, -1.8);
-      splat(seed, 1, 0.50, 0.28, 0.05, -1.5);
-      splat(seed, 1, 0.35, 0.72, 0.03, -1.6);
-      q.submit([seed.finish()]);
-
-      let frame = 0;
-
-      function step() {
+      function frame() {
         if (stopped) return;
-        const enc = dev.createCommandEncoder();
-        const pi  = frame % 3;
-        const ci  = (frame + 1) % 3;
-        const ni  = (frame + 2) % 3;
 
-        // Inject pointer disturbance into current buffer before wave step.
         const ptr = ptrRef.current;
         const gyr = gyrRef.current;
-        if (ptr.down && Math.abs(ptr.dx) + Math.abs(ptr.dy) > 0.0002) {
-          splat(enc, ci, ptr.x, ptr.y, 0.022, -2.0);
-          ptr.dx = 0; ptr.dy = 0;
-        }
-        // Gyro: tilt shifts the splat point, simulating gravity pulling the water.
-        if (Math.abs(gyr.ax) + Math.abs(gyr.ay) > 0.6) {
-          splat(enc, ci, 0.5 + gyr.ay * 0.06, 0.5 - gyr.ax * 0.06, 0.035, -0.9);
-        }
+        if (ptr.down) splat(ptr.x, 0.05, 0.025);
+        // Gyro: tilt left/right → wave on that side
+        if (Math.abs(gyr.ax) > 0.6) splat(0.5 + Math.sign(gyr.ax) * 0.4, 0.04, 0.05);
 
-        // Wave propagation step: prev, cur → next.
-        {
-          const p = enc.beginComputePass();
-          p.setPipeline(wavePL);
-          p.setBindGroup(0, bg(wavePL, [
-            { binding:0, resource:{ buffer: hBuf[pi] } },
-            { binding:1, resource:{ buffer: hBuf[ci] } },
-            { binding:2, resource:{ buffer: hBuf[ni] } },
-          ]));
-          p.dispatchWorkgroups(Math.ceil(SW/16), Math.ceil(SH/16));
-          p.end();
-        }
+        stepWave();
 
-        // Render the newly computed frame (ni) to the canvas.
+        // Report centre waterline Y to page for text-colour updates.
+        onWlRef.current?.(cur[Math.floor(N / 2)]);
+
+        q.writeBuffer(surfBuf, 0, cur);
+
+        const enc = dev.createCommandEncoder();
+        const bg  = dev.createBindGroup({
+          layout: renPL.getBindGroupLayout(0),
+          entries: [
+            { binding: 0, resource: { buffer: surfBuf } },
+            { binding: 1, resource: { buffer: dimBuf  } },
+          ],
+        });
         const rp = enc.beginRenderPass({ colorAttachments: [{
           view:       ctx.getCurrentTexture().createView(),
           clearValue: { r:1, g:1, b:1, a:1 },
@@ -229,52 +177,31 @@ export default function FluidSim() {
           storeOp:    "store",
         }]});
         rp.setPipeline(renPL);
-        rp.setBindGroup(0, bg(renPL, [
-          { binding:0, resource:{ buffer: hBuf[ni] } },
-          { binding:1, resource:{ buffer: dimU } },
-        ]));
+        rp.setBindGroup(0, bg);
         rp.draw(4);
         rp.end();
-
         q.submit([enc.finish()]);
-        frame++;
-        raf = requestAnimationFrame(step);
+
+        raf = requestAnimationFrame(frame);
       }
 
-      step();
+      frame();
     }
 
-    init().catch(console.error);
+    run().catch(console.error);
 
-    // ---- Input ----
-    const c = canvas;
-    let last = { x: .5, y: .5 };
-    const rc  = () => c.getBoundingClientRect();
-    const nv  = (e: MouseEvent | Touch, r: DOMRect) => ({
-      x: (e.clientX - r.left) / r.width,
-      y: (e.clientY - r.top)  / r.height,
-    });
+    // ── Input ────────────────────────────────────────────────────────────────
+    const c  = canvas;
+    const rc = () => c.getBoundingClientRect();
+    const nx = (e: MouseEvent | Touch) => (e.clientX - rc().left) / rc().width;
 
-    const onDown  = (e: MouseEvent) => { last = nv(e, rc()); ptrRef.current.down = true; };
-    const onMove  = (e: MouseEvent) => {
-      if (!ptrRef.current.down) return;
-      const pos = nv(e, rc());
-      ptrRef.current = { ...ptrRef.current, x:pos.x, y:pos.y, dx:pos.x-last.x, dy:pos.y-last.y };
-      last = pos;
-    };
-    const onUp    = () => { ptrRef.current.down = false; };
-    const onTDown = (e: TouchEvent) => { e.preventDefault(); last = nv(e.touches[0], rc()); ptrRef.current.down = true; };
-    const onTMove = (e: TouchEvent) => {
-      e.preventDefault();
-      const pos = nv(e.touches[0], rc());
-      ptrRef.current = { ...ptrRef.current, x:pos.x, y:pos.y, dx:pos.x-last.x, dy:pos.y-last.y };
-      last = pos;
-    };
-    const onTUp   = () => { ptrRef.current.down = false; };
-    const onMotion = (e: DeviceMotionEvent) => {
-      const a = e.accelerationIncludingGravity;
-      if (a) gyrRef.current = { ax: a.x ?? 0, ay: a.y ?? 0 };
-    };
+    const onDown  = (e: MouseEvent)  => { ptrRef.current = { x: nx(e),          down: true }; };
+    const onMove  = (e: MouseEvent)  => { if (ptrRef.current.down) ptrRef.current.x = nx(e); };
+    const onUp    = ()               => { ptrRef.current.down = false; };
+    const onTDown = (e: TouchEvent)  => { e.preventDefault(); ptrRef.current = { x: nx(e.touches[0]), down: true }; };
+    const onTMove = (e: TouchEvent)  => { e.preventDefault(); if (ptrRef.current.down) ptrRef.current.x = nx(e.touches[0]); };
+    const onTUp   = ()               => { ptrRef.current.down = false; };
+    const onMot   = (e: DeviceMotionEvent) => { gyrRef.current.ax = e.accelerationIncludingGravity?.x ?? 0; };
 
     c.addEventListener("mousedown",  onDown);
     window.addEventListener("mousemove", onMove);
@@ -282,7 +209,7 @@ export default function FluidSim() {
     c.addEventListener("touchstart", onTDown, { passive: false });
     c.addEventListener("touchmove",  onTMove, { passive: false });
     c.addEventListener("touchend",   onTUp);
-    window.addEventListener("devicemotion", onMotion);
+    window.addEventListener("devicemotion", onMot);
 
     return () => {
       stopped = true;
@@ -293,20 +220,15 @@ export default function FluidSim() {
       c.removeEventListener("touchstart", onTDown);
       c.removeEventListener("touchmove",  onTMove);
       c.removeEventListener("touchend",   onTUp);
-      window.removeEventListener("devicemotion", onMotion);
+      window.removeEventListener("devicemotion", onMot);
     };
   }, []);
 
   return (
-    <div className="relative w-full h-full">
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full"
-        style={{ cursor: "crosshair" }}
-      />
-      <p className="absolute bottom-2 right-3 text-white/40 text-xs select-none pointer-events-none">
-        click to ripple · tilt on mobile
-      </p>
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="w-full h-full block"
+      style={{ cursor: "crosshair" }}
+    />
   );
 }
