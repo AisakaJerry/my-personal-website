@@ -32,8 +32,9 @@ const DEPTH_SCALE = 0.55;  // amplitude scale for far wave
 const LAG         = 15;    // frame lag between near and far line
 
 // Force impulse params
-const FORCE_SIGMA = 0.06;  // fraction of grid width
-const FORCE_AMP   = -0.18;
+const FORCE_SIGMA   = 0.06;  // fraction of grid width
+const FORCE_AMP     = 0.06;  // positive → surface dips down (stone-drop depression)
+const STEPS_PER_FRAME = 3;   // physics steps per render frame → faster wave motion
 
 // ── Fullscreen quad ───────────────────────────────────────────────────────────
 const VERT = `
@@ -264,13 +265,14 @@ export default function FluidSim({
       function frame() {
         if (stopped) return;
 
-        // Input → force
+        // Run multiple physics steps per frame for faster wave propagation
         const ptr = ptrRef.current;
         const gyr = gyrRef.current;
-        if (ptr.down) applyForce(ptr.x);
-        if (Math.abs(gyr.ax) > 0.8) applyForce(0.5 + Math.sign(gyr.ax) * 0.35);
-
-        stepWave();
+        for (let s = 0; s < STEPS_PER_FRAME; s++) {
+          if (ptr.down) applyForce(ptr.x);
+          if (Math.abs(gyr.ax) > 0.8) applyForce(0.5 + Math.sign(gyr.ax) * 0.35);
+          stepWave();
+        }
         fillDisplayBuffers();
 
         // Report centre waterline to homepage for text colour adaptation
