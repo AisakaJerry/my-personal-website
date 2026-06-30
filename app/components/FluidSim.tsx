@@ -33,7 +33,7 @@ const LAG         = 15;    // frame lag between near and far line
 
 // Force impulse params
 const FORCE_SIGMA   = 0.06;  // fraction of grid width
-const FORCE_AMP     = 0.008; // positive → surface dips down (stone-drop depression)
+const FORCE_AMP     = 0.002; // positive → surface dips down (stone-drop depression)
 const STEPS_PER_FRAME = 3;   // physics steps per render frame → faster wave motion
 
 // ── Fullscreen quad ───────────────────────────────────────────────────────────
@@ -45,12 +45,13 @@ fn main(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
 }`;
 
 // ── Side-view renderer ────────────────────────────────────────────────────────
-// Receives two surface arrays (near + far) and canvas dimensions.
-// near[x] and far[x] are normalised Y values (0=top, 1=bottom), rest ≈ 0.5.
+// Air pixels output alpha=0 (fully transparent) — CSS background shows through.
+// Water pixels output alpha=1 (fully opaque blue).
+// This means dark mode just needs `bg-black` on the page element — no shader changes.
 const FRAG = `
 @group(0) @binding(0) var<storage,read> near: array<f32>;
 @group(0) @binding(1) var<storage,read> far:  array<f32>;
-@group(0) @binding(2) var<uniform>      dim:  vec4<f32>;
+@group(0) @binding(2) var<uniform>      dim:  vec4<f32>; // (w, h, _, _)
 
 fn sampleLine(buf: ptr<storage,array<f32>,read>, uv_x: f32) -> f32 {
   let fx = uv_x * f32(${N_COLS} - 1);
@@ -63,11 +64,11 @@ fn sampleLine(buf: ptr<storage,array<f32>,read>, uv_x: f32) -> f32 {
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-  let uv  = pos.xy / dim.xy;   // (0,0)=top-left (1,1)=bottom-right
+  let uv  = pos.xy / dim.xy;
   let sy_near = sampleLine(&near, uv.x);
   let sy_far  = sampleLine(&far,  uv.x);
 
-  // ── Surface slope → normal for specular (near wave) ─────────────────────
+  // ── Surface slope → normal for specular ─────────────────────────────────
   let e    = 1.5 / f32(${N_COLS});
   let hn_l = sampleLine(&near, clamp(uv.x - e, 0.0, 1.0));
   let hn_r = sampleLine(&near, clamp(uv.x + e, 0.0, 1.0));
@@ -79,32 +80,27 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   let d_near = uv.y - sy_near;
   let d_far  = uv.y - sy_far;
 
-  // ── Air zone (above near wave) ───────────────────────────────────────────
+  // ── Air zone → fully transparent (CSS bg shows through) ─────────────────
   if (d_near < -0.003) {
-    return vec4(1., 1., 1., 1.);
+    return vec4(0., 0., 0., 0.);
   }
 
-  // ── Near surface transition band ─────────────────────────────────────────
+  // ── Surface transition band ──────────────────────────────────────────────
   if (d_near < 0.003) {
     let t  = (d_near + 0.003) / 0.006;
     let sc = vec3(0.48, 0.76, 1.00) + spec * 0.9;
-    return vec4(mix(vec3(1.), clamp(vec3(sc), vec3(0.), vec3(1.)), t), 1.);
+    return vec4(clamp(vec3(sc), vec3(0.), vec3(1.)), t);
   }
 
   // ── Water body ────────────────────────────────────────────────────────────
   let shallow = vec3(0.18, 0.55, 0.97);
   let deep    = vec3(0.02, 0.10, 0.44);
   var wc      = mix(shallow, deep, clamp(d_near * 3.0, 0., 1.));
-
-  // Subsurface scatter
   wc += exp(-d_near * 20.) * vec3(0.06, 0.10, 0.16);
-
-  // Caustic shimmer
   let caus = sin(pos.x * 0.06 + sy_near * 28.) * sin(pos.y * 0.09 - sy_near * 20.);
   wc += clamp(caus, 0., 1.) * exp(-d_near * 14.) * 0.06;
 
-  // ── Far wave line overlay (pseudo-3D depth) ───────────────────────────────
-  // Draw it as a thin bright line inside the water body.
+  // ── Far wave glow inside water ───────────────────────────────────────────
   let dist_far = abs(uv.y - sy_far);
   let far_glow = exp(-dist_far * dist_far * 120000.0) * 0.55;
   wc = mix(wc, vec3(0.62, 0.88, 1.0), far_glow * clamp(d_far + 0.02, 0., 1.));
@@ -171,7 +167,7 @@ export default function FluidSim({
     const farBuf  = new Float32Array(N_COLS);
 
     function toScreenY(disp: number): number {
-      return Math.max(0.05, Math.min(0.95, 0.5 + disp * 0.06));
+      return Math.max(0.05, Math.min(0.95, 0.5 + disp * 0.02));
     }
 
     function applyForce(xFrac: number) {
@@ -216,9 +212,13 @@ export default function FluidSim({
           + rSq * lap
         ) / (1.0 + glWeights[0] * fractionalFactor);
       }
-      // Boundary: fixed ends
+      // Boundary: fixed ends; clamp all values to prevent runaway accumulation
       next[0] = 0;
       next[N_COLS - 1] = 0;
+      for (let x = 1; x < N_COLS - 1; x++) {
+        if (next[x] > 2) next[x] = 2;
+        else if (next[x] < -2) next[x] = -2;
+      }
 
       stepN++;
     }
@@ -248,12 +248,11 @@ export default function FluidSim({
       const q: D   = dev.queue;
       const ctx: D = canvas.getContext("webgpu");
       const fmt: string = nav.gpu.getPreferredCanvasFormat();
-      ctx.configure({ device: dev, format: fmt, alphaMode: "opaque" });
+      ctx.configure({ device: dev, format: fmt, alphaMode: "premultiplied" });
 
       const nearGPU = dev.createBuffer({ size: N_COLS * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
       const farGPU  = dev.createBuffer({ size: N_COLS * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
       const dimBuf  = dev.createBuffer({ size: 16,         usage: GPUBufferUsage.UNIFORM  | GPUBufferUsage.COPY_DST });
-      q.writeBuffer(dimBuf, 0, new Float32Array([canvas.width, canvas.height, 0, 0]));
 
       const renPL = dev.createRenderPipeline({
         layout:    "auto",
@@ -265,19 +264,18 @@ export default function FluidSim({
       function frame() {
         if (stopped) return;
 
-        // Run multiple physics steps per frame for faster wave propagation
+        // Apply force once per frame (not per sub-step) to avoid amplitude blow-up
         const ptr = ptrRef.current;
         const gyr = gyrRef.current;
-        for (let s = 0; s < STEPS_PER_FRAME; s++) {
-          if (ptr.down) applyForce(ptr.x);
-          if (Math.abs(gyr.ax) > 0.8) applyForce(0.5 + Math.sign(gyr.ax) * 0.35);
-          stepWave();
-        }
+        if (ptr.down) applyForce(ptr.x);
+        if (Math.abs(gyr.ax) > 0.8) applyForce(0.5 + Math.sign(gyr.ax) * 0.35);
+        for (let s = 0; s < STEPS_PER_FRAME; s++) stepWave();
         fillDisplayBuffers();
 
         // Report centre waterline to homepage for text colour adaptation
         onWlRef.current?.(nearBuf[Math.floor(N_COLS / 2)]);
 
+        q.writeBuffer(dimBuf,  0, new Float32Array([canvas.width, canvas.height, 0, 0]));
         q.writeBuffer(nearGPU, 0, nearBuf);
         q.writeBuffer(farGPU,  0, farBuf);
 
@@ -290,7 +288,8 @@ export default function FluidSim({
             { binding: 2, resource: { buffer: dimBuf  } },
           ],
         });
-        const rp = enc.beginRenderPass({ colorAttachments: [{ view: ctx.getCurrentTexture().createView(), clearValue: { r:1,g:1,b:1,a:1 }, loadOp:"clear", storeOp:"store" }] });
+        // Clear to transparent — air pixels are also transparent, so CSS bg shows through.
+        const rp = enc.beginRenderPass({ colorAttachments: [{ view: ctx.getCurrentTexture().createView(), clearValue: { r:0, g:0, b:0, a:0 }, loadOp:"clear", storeOp:"store" }] });
         rp.setPipeline(renPL);
         rp.setBindGroup(0, bg);
         rp.draw(4);
