@@ -33,7 +33,7 @@ const LAG         = 15;    // frame lag between near and far line
 
 // Force impulse params
 const FORCE_SIGMA   = 0.06;  // fraction of grid width
-const FORCE_AMP     = 0.06;  // positive → surface dips down (stone-drop depression)
+const FORCE_AMP     = 0.008; // positive → surface dips down (stone-drop depression)
 const STEPS_PER_FRAME = 3;   // physics steps per render frame → faster wave motion
 
 // ── Fullscreen quad ───────────────────────────────────────────────────────────
@@ -171,7 +171,7 @@ export default function FluidSim({
     const farBuf  = new Float32Array(N_COLS);
 
     function toScreenY(disp: number): number {
-      return Math.max(0.05, Math.min(0.95, 0.5 + disp * 0.18));
+      return Math.max(0.05, Math.min(0.95, 0.5 + disp * 0.06));
     }
 
     function applyForce(xFrac: number) {
