@@ -27,10 +27,10 @@ const DAMP     = 0.06;  // linear velocity damping (per unit time)
 const NU       = 0.3;   // velocity viscosity (kills grid-scale jaggies)
 const U_MAX    = 2.5;   // safety clamp, keeps CFL = (|u|+c)*DT/DX < 1
 
-// Gyro
-const GYRO_SCALE      = 0.004; // body-force per unit of ax (full tilt ≈ half-depth slosh)
-const GYRO_TILT_SCALE = 0.025; // visual slope offset (immediate feedback)
-const GYRO_THRESHOLD  = 0.25;  // dead-zone for sensor noise
+// Gyro — gyr.ax is the normalized gravity component along screen-x, in [-1, 1].
+const GYRO_SCALE      = 0.096; // body force at full tilt (ax=1) → water piles hard to one side
+const GYRO_TILT_SCALE = 0.08;  // visual slope offset (immediate feedback)
+const GYRO_THRESHOLD  = 0.03;  // dead-zone for sensor noise (~2° of tilt)
 
 // Click / touch — a volume-neutral depression applied while pointer is down.
 const SPLASH_RADIUS = 0.05; // Gaussian sigma as fraction of grid width
@@ -264,20 +264,43 @@ export default function FluidSim({
     const rc = () => c.getBoundingClientRect();
     const nx = (e: MouseEvent | Touch) => (e.clientX - rc().left) / rc().width;
 
-    const onDown   = (e: MouseEvent)  => { ptrRef.current = { x: nx(e), down: true }; };
+    // iOS 13+ only delivers orientation events after an explicit permission
+    // request, and that request must come from a user gesture.
+    let permAsked = false;
+    const askGyroPermission = () => {
+      if (permAsked) return;
+      permAsked = true;
+      const DOE = (window as D).DeviceOrientationEvent;
+      if (DOE && typeof DOE.requestPermission === "function") {
+        DOE.requestPermission().catch(() => {});
+      }
+    };
+
+    const onDown   = (e: MouseEvent)  => { askGyroPermission(); ptrRef.current = { x: nx(e), down: true }; };
     const onMove   = (e: MouseEvent)  => { if (ptrRef.current.down) ptrRef.current.x = nx(e); };
     const onUp     = ()               => { ptrRef.current.down = false; };
-    const onTDown  = (e: TouchEvent)  => { e.preventDefault(); ptrRef.current = { x: nx(e.touches[0]), down: true }; };
+    const onTDown  = (e: TouchEvent)  => { e.preventDefault(); askGyroPermission(); ptrRef.current = { x: nx(e.touches[0]), down: true }; };
     const onTMove  = (e: TouchEvent)  => { e.preventDefault(); if (ptrRef.current.down) ptrRef.current.x = nx(e.touches[0]); };
     const onTUp    = ()               => { ptrRef.current.down = false; };
-    const onMot    = (e: DeviceMotionEvent) => {
-      const a = e.accelerationIncludingGravity;
-      if (!a) return;
-      const ax = a.x ?? 0, ay = a.y ?? 0;
-      gyrRef.current.ax = Math.abs(ax) >= Math.abs(ay) ? ax : ay;
-    };
+
+    // Single source of truth for tilt. Raw gamma is NOT gravity-along-screen-x:
+    // reconstruct the gravity direction in device coordinates from the spec's
+    // Z-X'-Y'' Euler angles, then rotate into the screen frame so landscape
+    // orientations behave correctly.
+    //   g_device = (sin γ · cos β,  −sin β,  −cos γ · cos β)   (unit, points down)
     const onOrient = (e: DeviceOrientationEvent) => {
-      gyrRef.current.ax = (e.gamma ?? 0) * 0.3;
+      if (e.beta == null || e.gamma == null) return;
+      const b  = (e.beta  * Math.PI) / 180;
+      const g  = (e.gamma * Math.PI) / 180;
+      const gxDev = Math.sin(g) * Math.cos(b);
+      const gyDev = -Math.sin(b);
+      const scr = window.screen as D;
+      const angleDeg: number =
+        (scr.orientation && typeof scr.orientation.angle === "number"
+          ? scr.orientation.angle
+          : (window as D).orientation) ?? 0;
+      const a = (angleDeg * Math.PI) / 180;
+      gyrRef.current.ax = gxDev * Math.cos(a) + gyDev * Math.sin(a);
     };
 
     c.addEventListener("mousedown",       onDown);
@@ -286,7 +309,6 @@ export default function FluidSim({
     c.addEventListener("touchstart",      onTDown,  { passive: false });
     c.addEventListener("touchmove",       onTMove,  { passive: false });
     c.addEventListener("touchend",        onTUp);
-    window.addEventListener("devicemotion",      onMot);
     window.addEventListener("deviceorientation", onOrient);
 
     return () => {
@@ -298,7 +320,6 @@ export default function FluidSim({
       c.removeEventListener("touchstart",     onTDown);
       c.removeEventListener("touchmove",      onTMove);
       c.removeEventListener("touchend",       onTUp);
-      window.removeEventListener("devicemotion",      onMot);
       window.removeEventListener("deviceorientation", onOrient);
     };
   }, []);
