@@ -33,7 +33,7 @@ export default function HomePage() {
 
   // Read dark mode directly from matchMedia every frame — no React state,
   // no re-renders, always fresh.
-  const onWaterline = useCallback((sy: number) => {
+  const onWaterline = useCallback((sy: number, flipped: boolean) => {
     const hero  = heroRef.current;
     const cards = cardsRef.current;
     if (!hero || !cards) return;
@@ -41,13 +41,18 @@ export default function HomePage() {
     const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const air  = airPalette(dark);
 
-    hero.style.setProperty("--title-color", sy < HERO_Y  ? WATER.title     : air.title);
-    hero.style.setProperty("--sub-color",   sy < HERO_Y  ? WATER.sub       : air.sub);
+    // Water fills upward from the bottom normally; when the device is upside
+    // down it hangs from the top, so the submerged test inverts.
+    const heroUnder  = flipped ? sy > HERO_Y  : sy < HERO_Y;
+    const cardsUnder = flipped ? sy > CARDS_Y : sy < CARDS_Y;
 
-    cards.style.setProperty("--card-bg",     sy < CARDS_Y ? WATER.cardBg     : air.cardBg);
-    cards.style.setProperty("--card-border", sy < CARDS_Y ? WATER.cardBorder : air.cardBorder);
-    cards.style.setProperty("--card-label",  sy < CARDS_Y ? WATER.cardLabel  : air.cardLabel);
-    cards.style.setProperty("--card-desc",   sy < CARDS_Y ? WATER.cardDesc   : air.cardDesc);
+    hero.style.setProperty("--title-color", heroUnder  ? WATER.title     : air.title);
+    hero.style.setProperty("--sub-color",   heroUnder  ? WATER.sub       : air.sub);
+
+    cards.style.setProperty("--card-bg",     cardsUnder ? WATER.cardBg     : air.cardBg);
+    cards.style.setProperty("--card-border", cardsUnder ? WATER.cardBorder : air.cardBorder);
+    cards.style.setProperty("--card-label",  cardsUnder ? WATER.cardLabel  : air.cardLabel);
+    cards.style.setProperty("--card-desc",   cardsUnder ? WATER.cardDesc   : air.cardDesc);
   }, []);
 
   return (
