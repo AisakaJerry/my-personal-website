@@ -3,38 +3,39 @@
 import { useEffect, useRef } from "react";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1-D Shallow Water Equations (SWE) — side-view water in a container
+// 1-D Shallow Water Equations — side-view water in a container
 //
-// State per column x:
-//   h[x]  — water depth  (always ≥ 0)
-//   u[x]  — depth-averaged horizontal velocity
+// Staggered (Arakawa-C) grid:
+//   h[i]  — water depth at cell centers, i = 0..N-1   (rest depth = 1)
+//   u[i]  — velocity at cell faces,      i = 0..N     (u[0] = u[N] = 0 → walls)
 //
-// Update (explicit Euler, one step):
-//   h_new[x]  = h[x]  - dt * (flux_right - flux_left) / dx
-//   u_new[x]  = u[x]  - dt * (g * (h[x+1]-h[x-1])/(2*dx)   ← pressure gradient
-//                            + u[x]*(u_right-u_left)/(2*dx)  ← advection
-//                            + gx                            ← gravity body force
-//                            + damping * u[x])               ← viscosity
+// Update (explicit, SUBSTEPS per frame):
+//   u[i] += dt * (-G * (h[i]-h[i-1])/dx + gx - DAMP*u[i]) + viscosity
+//   h[i] -= dt * (F[i+1] - F[i]) / dx,   F[face] = u * h_upwind
 //
-// Flux = h[x] * u[x]  (volume flow rate per unit width)
-//
-// Boundary: reflective walls — u[0]=u[N-1]=0, h mirrors neighbor
+// The staggered grid avoids the odd/even decoupling and heavy numerical
+// diffusion of collocated Lax-Friedrichs — waves actually propagate.
+// Flux form + zero wall flux conserves total volume exactly.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const N    = 256;    // number of columns
-const DX   = 1.0;   // grid spacing (arbitrary units)
-const DT   = 0.4;   // time step
-const G    = 0.4;   // gravitational constant (controls wave speed)
-const DAMP = 0.07;  // linear velocity damping
+const N        = 256;   // number of columns
+const DX       = 1.0;   // grid spacing
+const DT       = 0.12;  // sub-step time step
+const SUBSTEPS = 5;     // sub-steps per frame (wave crosses screen in ~2.3 s)
+const G        = 9.8;   // gravity → wave speed c = sqrt(G*h) ≈ 3.1 cells/unit-time
+const DAMP     = 0.06;  // linear velocity damping (per unit time)
+const NU       = 0.3;   // velocity viscosity (kills grid-scale jaggies)
+const U_MAX    = 2.5;   // safety clamp, keeps CFL = (|u|+c)*DT/DX < 1
 
 // Gyro
-const GYRO_SCALE     = 0.012;  // body-force per unit of ax (tilt acceleration)
+const GYRO_SCALE      = 0.004; // body-force per unit of ax (full tilt ≈ half-depth slosh)
 const GYRO_TILT_SCALE = 0.025; // visual slope offset (immediate feedback)
 const GYRO_THRESHOLD  = 0.25;  // dead-zone for sensor noise
 
-// Click / touch
-const SPLASH_RADIUS = 0.07;  // fraction of grid width
-const SPLASH_AMP    = 0.18;  // height displacement on click
+// Click / touch — a volume-neutral depression applied while pointer is down.
+const SPLASH_RADIUS = 0.05; // Gaussian sigma as fraction of grid width
+const SPLASH_AMP    = 0.06; // depth removed per frame at the center (rest depth = 1)
+const SPLASH_FLOOR  = 0.35; // stop pushing once the column is this shallow
 
 // ── Fullscreen quad ───────────────────────────────────────────────────────────
 const VERT = `
@@ -114,13 +115,13 @@ export default function FluidSim({
     canvas.height = window.innerHeight;
 
     // ── SWE state ─────────────────────────────────────────────────────────────
-    // Resting water level = 0.5 (half-full container).
-    const H0 = 0.5 * N * DX;   // resting total depth in grid units
+    const REST_H = 1.0;               // rest depth (normalised)
+    const H0     = REST_H * N;        // total volume
 
-    const h    = new Float64Array(N).fill(H0 / N); // depth per column
-    const u    = new Float64Array(N);               // velocity per column
+    const h    = new Float64Array(N).fill(REST_H); // depth at cell centers
+    const u    = new Float64Array(N + 1);          // velocity at cell faces
     const hNew = new Float64Array(N);
-    const uNew = new Float64Array(N);
+    const uNew = new Float64Array(N + 1);
 
     // surfBuf: screen-Y (0=top, 1=bottom) for each column, sent to GPU each frame
     const surfBuf = new Float32Array(N);
@@ -131,87 +132,65 @@ export default function FluidSim({
     function applyForce(xFrac: number) {
       const xc  = xFrac * N;
       const sig = SPLASH_RADIUS * N;
+
+      // Fade the push out as the column gets shallow — prevents carving the
+      // water down to nothing while the pointer is held.
+      const hc  = h[Math.max(0, Math.min(N - 1, Math.round(xc)))];
+      const eff = SPLASH_AMP * Math.max(0, Math.min(1, (hc - SPLASH_FLOOR) / 0.5));
+      if (eff <= 0) return;
+
+      // Volume-neutral shape: narrow Gaussian down, twice-as-wide Gaussian up
+      // (half amplitude → equal integrals), so displaced water piles up beside
+      // the pit instead of being teleported across the whole tank.
       for (let x = 0; x < N; x++) {
-        const dx = (x - xc) / sig;
-        // Negative = push water down (stone drop) — displaces volume by raising neighbors
-        h[x] = Math.max(0.001, h[x] - SPLASH_AMP * Math.exp(-0.5 * dx * dx));
+        const d = x - xc;
+        const narrow = Math.exp(-0.5 * (d / sig) * (d / sig));
+        const wide   = Math.exp(-0.5 * (d / (2 * sig)) * (d / (2 * sig)));
+        h[x] = Math.max(0.02, h[x] - eff * (narrow - 0.5 * wide));
       }
-      // Conserve total volume: redistribute the removed water evenly
-      const deficit = H0 - h.reduce((s, v) => s + v, 0);
-      const add = deficit / N;
+      // The min-clamp above can leak a little volume — put it back uniformly.
+      let total = 0;
+      for (let x = 0; x < N; x++) total += h[x];
+      const add = (H0 - total) / N;
       for (let x = 0; x < N; x++) h[x] += add;
     }
 
     function stepSWE(gx: number) {
-      // Lax-Friedrichs scheme — averages neighbors to suppress odd/even decoupling.
-      // hNew[x] = 0.5*(h[x-1]+h[x+1]) - dt/(2dx) * (flux[x+1] - flux[x-1])
-      // uNew[x] = 0.5*(u[x-1]+u[x+1]) - dt/(2dx) * (momentum terms)
-      const restH = H0 / N;
-
-      for (let x = 1; x < N - 1; x++) {
-        const flux_l = h[x-1] * u[x-1];
-        const flux_r = h[x+1] * u[x+1];
-
-        // Continuity (Lax-Friedrichs)
-        hNew[x] = 0.5 * (h[x-1] + h[x+1]) - 0.5 * DT / DX * (flux_r - flux_l);
-        if (hNew[x] < 0.0001) hNew[x] = 0.0001;
-        if (hNew[x] > restH * 3.5) hNew[x] = restH * 3.5;
-
-        // Momentum (Lax-Friedrichs) with pressure gradient + body force + damping
-        const dh_dx = (h[x+1] - h[x-1]) / (2 * DX);
-        const uAvg  = 0.5 * (u[x-1] + u[x+1]);
-        uNew[x] = uAvg + DT * (-G * dh_dx + gx - DAMP * u[x]);
-        if (uNew[x] >  2.5) uNew[x] =  2.5;
-        if (uNew[x] < -2.5) uNew[x] = -2.5;
+      // Momentum on faces: pressure gradient + body force + damping + viscosity
+      for (let i = 1; i < N; i++) {
+        const dhdx = (h[i] - h[i - 1]) / DX;
+        const visc = NU * (u[i + 1] - 2 * u[i] + u[i - 1]) / (DX * DX);
+        let v = u[i] + DT * (-G * dhdx + gx - DAMP * u[i] + visc);
+        if (v >  U_MAX) v =  U_MAX;
+        if (v < -U_MAX) v = -U_MAX;
+        uNew[i] = v;
       }
+      uNew[0] = 0;
+      uNew[N] = 0;
 
-      // Reflective walls
-      hNew[0]     = hNew[1];
-      hNew[N - 1] = hNew[N - 2];
-      uNew[0]     = 0;
-      uNew[N - 1] = 0;
-
-      // Extra damping near walls to prevent edge pile-up
-      for (let i = 0; i < 8; i++) {
-        const fade = (8 - i) / 8;
-        uNew[i]         *= 1 - fade * 0.15;
-        uNew[N - 1 - i] *= 1 - fade * 0.15;
+      // Continuity: upwind flux through each face
+      for (let i = 0; i < N; i++) {
+        const ul = uNew[i];
+        const ur = uNew[i + 1];
+        const fl = ul > 0 ? (i > 0     ? h[i - 1] : h[i]) * ul : h[i] * ul;
+        const fr = ur > 0 ? h[i] * ur : (i < N - 1 ? h[i + 1] : h[i]) * ur;
+        hNew[i] = Math.max(0.02, h[i] - DT / DX * (fr - fl));
       }
 
       h.set(hNew);
       u.set(uNew);
-
-      // Spatial smoothing — blends each column with neighbors to kill high-frequency
-      // checkerboard mode. σ=0.3 means 30% neighbor average, 70% self.
-      const σ = 0.3;
-      const h0 = h[0];
-      for (let x = 1; x < N - 1; x++) {
-        hNew[x] = (1 - σ) * h[x] + (σ / 2) * (h[x - 1] + h[x + 1]);
-      }
-      hNew[0]     = (1 - σ) * h[0]     + σ * h[1];
-      hNew[N - 1] = (1 - σ) * h[N - 1] + σ * h[N - 2];
-      h.set(hNew);
-
-      // Enforce volume conservation — rescale h so total always equals H0
-      let total = 0;
-      for (let x = 0; x < N; x++) total += h[x];
-      const scale = H0 / total;
-      for (let x = 0; x < N; x++) h[x] *= scale;
     }
 
     function fillSurfBuf() {
-      // h[x] is local water column height. Resting value = H0/N.
-      // Deviation from rest: delta[x] = h[x] - H0/N
-      // Map delta to screen offset: positive delta (more water) → surface rises → smaller Y.
-      // Scale: DISP_SCALE controls how much 1 unit of delta shifts the surface on screen.
-      const restH    = H0 / N;
-      const DISP_SCALE = 0.8; // screen-fraction per unit of normalised deviation
+      // delta = deviation from rest depth. tanh gives a soft ceiling so big
+      // sloshes compress smoothly instead of slamming into a hard clamp.
+      const DISP = 0.28; // max screen-fraction the surface moves from center
 
       for (let x = 0; x < N; x++) {
-        const delta = (h[x] - restH) / restH;   // normalised deviation from rest [-1..1]
+        const delta = h[x] - REST_H;
         const tilt  = smoothAx * GYRO_TILT_SCALE * (x / N - 0.5);
-        surfBuf[x]  = Math.max(0.05, Math.min(0.95,
-          0.5 - delta * DISP_SCALE * 0.5 + tilt
+        surfBuf[x]  = Math.max(0.03, Math.min(0.97,
+          0.5 - DISP * Math.tanh(delta * 1.6) + tilt
         ));
       }
     }
@@ -250,9 +229,7 @@ export default function FluidSim({
 
         if (ptr.down) applyForce(ptr.x);
 
-        // Two SWE steps per frame for smoother propagation
-        stepSWE(gx);
-        stepSWE(gx);
+        for (let s = 0; s < SUBSTEPS; s++) stepSWE(gx);
 
         fillSurfBuf();
         onWlRef.current?.(surfBuf[Math.floor(N / 2)]);
