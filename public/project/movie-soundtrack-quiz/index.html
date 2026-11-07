@@ -228,17 +228,17 @@
             <div class="w-full mt-2 mb-3">
                 <div class="flex items-center justify-between text-[11px] text-zinc-400 mb-1.5 px-1">
                     <span>选择盲听切片时长（越短得分倍率越高）：</span>
-                    <span id="clip-multiplier-label" class="text-amber-400 font-semibold mono-font">标准 1.0x</span>
+                    <span id="clip-multiplier-label" class="text-amber-400 font-semibold mono-font">标准切片 (基准分)</span>
                 </div>
                 <div class="grid grid-cols-3 gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800">
                     <button id="dur-btn-3" onclick="setClipLimit(3)" class="py-1.5 px-2 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-bolt text-amber-400"></i> 3秒前奏 <span class="text-[10px] opacity-75">(+50)</span>
+                        <i class="fa-solid fa-bolt text-amber-400"></i> 3秒前奏 <span class="text-[10px] opacity-75">(+30)</span>
                     </button>
-                    <button id="dur-btn-10" onclick="setClipLimit(10)" class="py-1.5 px-2 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-headphones"></i> 10秒切片 <span class="text-[10px] opacity-75">(+20)</span>
+                    <button id="dur-btn-10" onclick="setClipLimit(10)" class="py-1.5 px-2 rounded-lg text-xs font-semibold transition bg-amber-500 text-black flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-headphones"></i> 10秒切片
                     </button>
-                    <button id="dur-btn-30" onclick="setClipLimit(30)" class="py-1.5 px-2 rounded-lg text-xs font-semibold transition bg-amber-500 text-black flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-compact-disc"></i> 30秒完整
+                    <button id="dur-btn-30" onclick="setClipLimit(30)" class="py-1.5 px-2 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-compact-disc"></i> 30秒完整 <span class="text-[10px] opacity-75">(-20)</span>
                     </button>
                 </div>
             </div>
@@ -1522,7 +1522,7 @@
         let correctCount = 0;
         let hasAnsweredCurrent = false;
         let currentInputMode = 'mc';
-        let clipDurationLimit = 30;
+        let clipDurationLimit = 10;
         let clipStartPoint = 0;
         let hintsUsedInCurrentTrack = 0;
 
@@ -1787,11 +1787,11 @@
 
             const multLabel = document.getElementById('clip-multiplier-label');
             if (seconds === 3) {
-                multLabel.textContent = "极客盲听 (+50额外奖励)";
+                multLabel.textContent = "极客盲听 (+30额外奖励)";
             } else if (seconds === 10) {
-                multLabel.textContent = "标准切片 (+20额外奖励)";
+                multLabel.textContent = "标准切片 (基准分)";
             } else {
-                multLabel.textContent = "完整30秒原声试听";
+                multLabel.textContent = "完整30秒试听 (-20分)";
             }
 
             if (!audioEl.paused && audioEl.currentTime > clipStartPoint + clipDurationLimit) {
@@ -2084,8 +2084,8 @@
 
             // 计算分数（含3秒/10秒盲听加成、手写加成与提示扣减）
             let clipBonus = 0;
-            if (clipDurationLimit === 3) clipBonus = 50;
-            else if (clipDurationLimit === 10) clipBonus = 20;
+            if (clipDurationLimit === 3) clipBonus = 30;
+            else if (clipDurationLimit === 30) clipBonus = -20;
 
             const hintPenalty = hintsUsedInCurrentTrack * 10;
             let earned = 0;
@@ -2119,7 +2119,7 @@
 
             if (isCorrect) {
                 badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-0.5 rounded-full mb-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
-                badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> 盲听命中 (+${earned}分) ${clipBonus ? `· 切片挑战加成` : ''} ${isTextBonus ? '· 手写盲猜加成' : ''}`;
+                badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> 盲听命中 (+${earned}分) ${clipBonus > 0 ? `· 3秒切片加成` : (clipBonus < 0 ? `· 完整试听 -20` : '')} ${isTextBonus ? '· 手写盲猜加成' : ''}`;
             } else {
                 badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-0.5 rounded-full mb-1.5 bg-rose-500/20 text-rose-300 border border-rose-500/40";
                 badge.innerHTML = `<i class="fa-solid fa-circle-info"></i> 答案揭晓 · 已解锁完整30秒原声与乐理解析`;
