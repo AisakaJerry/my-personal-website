@@ -1,0 +1,2415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>影史经典原声盲听挑战 · 100首殿堂曲库 & 鉴赏六维图版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+        :root {
+            --gold-primary: #f59e0b;
+            --gold-light: #fcd34d;
+            --bg-dark: #09090b;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #f4f4f5;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.07) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.05) 0%, transparent 45%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .serif-title {
+            font-family: 'Noto Serif SC', serif;
+        }
+
+        .mono-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .vinyl-spinning {
+            animation: spinSlow 8s linear infinite;
+        }
+
+        .vinyl-paused {
+            animation: spinSlow 8s linear infinite;
+            animation-play-state: paused;
+        }
+
+        .vinyl-grooves {
+            background: repeating-radial-gradient(
+                #0d0d0f 0px,
+                #0d0d0f 2px,
+                #1c1c21 3px,
+                #0d0d0f 4px
+            );
+        }
+
+        .tonearm {
+            transform-origin: 78% 18%;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .tonearm-playing {
+            transform: rotate(24deg);
+        }
+        .tonearm-idle {
+            transform: rotate(-10deg);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .gold-glow {
+            box-shadow: 0 0 30px -8px rgba(245, 158, 11, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.08);
+        }
+
+        /* 音频进度条定制 */
+        input[type="range"].scrubber {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #27272a;
+            height: 6px;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        input[type="range"].scrubber::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #fcd34d;
+            cursor: pointer;
+            box-shadow: -400px 0 0 394px #f59e0b;
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f59e0b;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen selection:bg-amber-500 selection:text-black">
+
+    <!-- 顶部导航栏 -->
+    <header class="border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-black shadow-lg shadow-amber-500/20">
+                    <i class="fa-solid fa-record-vinyl text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="serif-title text-lg sm:text-xl font-bold tracking-wide text-amber-50">
+                            影史经典原声盲听挑战
+                        </h1>
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            100首奥斯卡/票房殿堂随机抽10
+                        </span>
+                        <span id="unlocked-count-badge" class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 hidden md:inline-block mono-font">
+                            已探索 0 / 100 首
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 计分状态栏与快捷操作 -->
+            <div class="flex items-center gap-2.5 sm:gap-4">
+                <button onclick="reshuffleNewSession()" class="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-amber-300 border border-zinc-800 text-xs font-medium transition flex items-center gap-1.5" title="从100首殿堂曲库重新随机抽取10首（优先未听过）">
+                    <i class="fa-solid fa-shuffle text-amber-400"></i>
+                    <span class="hidden sm:inline">换一批(随机10首)</span>
+                </button>
+
+                <button onclick="openRadarPreviewModal()" class="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-medium transition flex items-center gap-1.5" title="查看当前电影音乐六维雷达图">
+                    <i class="fa-solid fa-chart-pie text-amber-400"></i>
+                    <span class="hidden sm:inline">六维鉴赏图</span>
+                </button>
+
+                <div class="flex items-center gap-3 sm:gap-5 bg-zinc-900/90 border border-zinc-800 px-3.5 py-1.5 rounded-xl">
+                    <div class="text-center">
+                        <div class="text-[10px] uppercase tracking-wider text-zinc-400">随机题序</div>
+                        <div class="font-bold text-xs sm:text-sm text-white mono-font"><span id="current-level-num" class="text-amber-400">1</span> / <span id="total-level-num">10</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 顶部关卡进度条 -->
+        <div class="w-full h-1 bg-zinc-900">
+            <div id="progress-bar" class="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 transition-all duration-500" style="width: 10%"></div>
+        </div>
+    </header>
+
+    <!-- 主体布局 -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- 左侧：真实原声黑胶唱机控制台 (占5列) -->
+        <section class="lg:col-span-5 bg-zinc-900/75 border border-zinc-800/90 rounded-2xl p-5 sm:p-6 flex flex-col items-center relative overflow-hidden gold-glow">
+            <!-- 顶部曲目状态与维度标识 -->
+            <div class="w-full flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span id="track-badge" class="text-xs font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full bg-zinc-800 text-amber-400 border border-amber-500/20 mono-font">
+                        STAGE 01/10
+                    </span>
+                    <span id="dimension-badge" class="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/25">
+                        声学维度加载中
+                    </span>
+                </div>
+                <span id="audio-source-badge" class="text-xs text-zinc-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-notch fa-spin text-amber-400" id="loading-spinner"></i>
+                    <span id="audio-source-text" class="truncate max-w-[135px] sm:max-w-none">加载原声母带...</span>
+                </span>
+            </div>
+
+            <!-- 黑胶唱机视觉区 -->
+            <div class="relative w-56 h-56 sm:w-64 sm:h-64 my-2 flex items-center justify-center">
+                <div id="vinyl-aura" class="absolute inset-2 rounded-full bg-amber-500/15 blur-2xl transition-all duration-700 scale-95 opacity-30"></div>
+
+                <!-- 黑胶唱片本体 -->
+                <div id="vinyl-disc" class="w-52 h-52 sm:w-60 sm:h-60 rounded-full vinyl-grooves border-4 border-zinc-800 shadow-2xl flex items-center justify-center relative vinyl-paused">
+                    <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none"></div>
+                    
+                    <!-- 中心封面盘芯（答对前模糊遮罩，答后展示真实专辑封面） -->
+                    <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-zinc-950 relative flex items-center justify-center bg-gradient-to-br from-amber-500 to-amber-800 shadow-inner">
+                        <img id="vinyl-cover-img" src="https://placehold.co/200x200/18181b/f59e0b?text=OST" alt="Album Cover" class="w-full h-full object-cover blur-md scale-110 transition-all duration-700 opacity-50">
+                        <div id="vinyl-mystery-overlay" class="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-amber-300">
+                            <i class="fa-solid fa-ear-listen text-xl mb-0.5"></i>
+                            <span class="text-[9px] font-bold tracking-widest uppercase mono-font">BLIND TEST</span>
+                        </div>
+                    </div>
+                    <div class="w-3.5 h-3.5 rounded-full bg-zinc-950 border border-zinc-700 absolute z-10"></div>
+                </div>
+
+                <!-- 唱针 -->
+                <div id="tonearm" class="tonearm tonearm-idle absolute -top-2 -right-2 w-24 h-36 pointer-events-none z-10">
+                    <div class="w-8 h-8 rounded-full bg-zinc-700 border-2 border-zinc-500 shadow-md ml-auto mr-2 flex items-center justify-center">
+                        <div class="w-3 h-3 rounded-full bg-amber-400"></div>
+                    </div>
+                    <div class="w-1.5 h-24 bg-gradient-to-b from-zinc-400 to-zinc-600 ml-auto mr-5 -mt-1 rounded-full origin-top transform -rotate-12"></div>
+                    <div class="w-4 h-6 bg-amber-500 rounded-sm ml-auto mr-8 -mt-2 transform -rotate-12 shadow"></div>
+                </div>
+            </div>
+
+            <!-- 盲听时长挑战档位切换 -->
+            <div class="w-full mt-2 mb-3">
+                <div class="flex items-center justify-between text-[11px] text-zinc-400 mb-1.5 px-1">
+                    <span>盲听切片时长</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800">
+                    <button id="dur-btn-3" onclick="setClipLimit(3)" class="py-1.5 px-2 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-bolt text-amber-400"></i> 3秒前奏
+                    </button>
+                    <button id="dur-btn-10" onclick="setClipLimit(10)" class="py-1.5 px-2 rounded-lg text-xs font-semibold transition bg-amber-500 text-black flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-headphones"></i> 10秒切片
+                    </button>
+                    <button id="dur-btn-30" onclick="setClipLimit(30)" class="py-1.5 px-2 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-compact-disc"></i> 30秒完整
+                    </button>
+                </div>
+            </div>
+
+            <!-- 真实音频频谱 + 进度拖拽条 -->
+            <div class="w-full bg-zinc-950/90 border border-zinc-800/80 rounded-xl p-3 mb-4">
+                <canvas id="audio-visualizer" class="w-full h-14 rounded-lg bg-zinc-950 block mb-2"></canvas>
+                
+                <div class="flex items-center gap-2.5">
+                    <span id="current-time-text" class="text-[11px] mono-font text-amber-400 w-9">00:00</span>
+                    <input id="audio-scrubber" type="range" min="0" max="30" step="0.1" value="0" oninput="seekAudio(this.value)" class="scrubber flex-1 cursor-pointer">
+                    <span id="total-time-text" class="text-[11px] mono-font text-zinc-400 w-9 text-right">00:30</span>
+                </div>
+            </div>
+
+            <!-- 主播放与重播按钮 -->
+            <div class="w-full grid grid-cols-12 gap-2.5">
+                <button id="play-btn" onclick="togglePlay()" class="col-span-8 py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-sm sm:text-base shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-50">
+                    <i id="play-icon" class="fa-solid fa-play"></i>
+                    <span id="play-btn-text">播放真实原声</span>
+                </button>
+
+                <button onclick="replayFromStart()" class="col-span-4 py-3.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-xs sm:text-sm border border-zinc-700 flex items-center justify-center gap-1.5 transition active:scale-95">
+                    <i class="fa-solid fa-rotate-left text-amber-400"></i>
+                    <span>重头听</span>
+                </button>
+            </div>
+
+            <!-- 音量与高点跳转 -->
+            <div class="w-full flex items-center justify-between gap-3 mt-4 pt-3 border-t border-zinc-800/70 text-xs text-zinc-400">
+                <div class="flex items-center gap-2 flex-1">
+                    <i class="fa-solid fa-volume-high text-zinc-400"></i>
+                    <input id="volume-slider" type="range" min="0" max="100" value="85" oninput="updateVolume(this.value)" class="w-full accent-amber-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer">
+                </div>
+                <button onclick="jumpToClimax()" class="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1" title="直接跳到这段预览最具辨识度的副歌/主旋律位置">
+                    <i class="fa-solid fa-forward-step text-amber-400"></i> 跳至核心动机
+                </button>
+            </div>
+
+            <!-- 当前题库池状态说明 -->
+            <div class="w-full mt-3 pt-2.5 border-t border-zinc-800/50 flex items-center justify-between text-[11px] text-zinc-400">
+                <span><i class="fa-solid fa-layer-group text-amber-500/80 mr-1"></i>本局从 100 首获奖/高知名度殿堂池分层抽 10 首</span>
+                <button onclick="openPoolCatalogModal()" class="text-amber-400 hover:underline flex items-center gap-1 font-medium">
+                    <i class="fa-solid fa-list-ul"></i> 100首百大曲库图鉴
+                </button>
+            </div>
+
+            <!-- 隐藏的原生 Audio 元素 -->
+            <audio id="real-audio-player" crossorigin="anonymous" preload="auto"></audio>
+        </section>
+
+        <!-- 右侧：作答（主）→ 揭晓 → 线索（辅） (占7列) -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
+
+            <!-- 作答面板 -->
+            <div id="quiz-panel" class="bg-zinc-900/80 border border-amber-500/25 rounded-2xl p-5 sm:p-6 gold-glow">
+                <div class="flex items-baseline justify-between gap-3 mb-5">
+                    <h2 class="serif-title text-xl sm:text-2xl font-bold text-white">这段原声出自哪部作品？</h2>
+                    <span class="hidden sm:inline text-[11px] text-zinc-500 mono-font shrink-0">按 1–4 快速作答</span>
+                </div>
+                <div id="mc-options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- 动态渲染 -->
+                </div>
+            </div>
+
+            <!-- 答后揭晓：原声专辑信息与乐理解析 (默认隐藏) -->
+            <div id="reveal-panel" class="hidden bg-gradient-to-b from-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                    <div class="flex items-center gap-4">
+                        <img id="reveal-cover" src="" alt="OST Cover" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-zinc-700 shadow-lg">
+                        <div>
+                            <div id="answer-status-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full mb-1.5"></div>
+                            <h3 id="reveal-title" class="serif-title text-lg sm:text-xl font-bold text-white"></h3>
+                            <p id="reveal-track-name" class="text-xs sm:text-sm text-amber-400 font-semibold mt-0.5"></p>
+                            <p id="reveal-meta" class="text-xs text-zinc-400 mt-0.5"></p>
+                        </div>
+                    </div>
+                    <button id="next-track-btn" onclick="nextLevel()" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-bold text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition shrink-0">
+                        <span>下一首原声</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <div class="bg-zinc-900/90 border border-zinc-800 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-music"></i> 曲式、和声与配器美学解析
+                        </div>
+                        <span id="reveal-dim-tags" class="text-[11px] text-zinc-400"></span>
+                    </div>
+                    <p id="reveal-analysis" class="text-xs sm:text-sm text-zinc-300 leading-relaxed"></p>
+                </div>
+            </div>
+
+            <!-- 线索（弱化，辅助信息） -->
+            <div class="border border-zinc-800/60 rounded-xl px-4 py-3 text-zinc-400">
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <span class="text-[11px] uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
+                        <i class="fa-regular fa-lightbulb"></i> 线索
+                    </span>
+                    <span id="award-honor-tag" class="text-[11px] text-zinc-500 truncate"></span>
+                </div>
+                <p id="acoustic-clue-text" class="text-xs leading-relaxed text-zinc-400">正在加载配器特征...</p>
+                <p id="track-time-sig" class="mono-font text-[10px] text-zinc-600 mt-1"></p>
+
+                <div class="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <button id="hint1-btn" onclick="unlockHint(1)" class="text-zinc-500 hover:text-zinc-300 underline-offset-2 hover:underline transition">
+                        <i class="fa-regular fa-calendar mr-1"></i>告诉我年代与流派
+                    </button>
+                    <button id="hint2-btn" onclick="unlockHint(2)" class="text-zinc-500 hover:text-zinc-300 underline-offset-2 hover:underline transition">
+                        <i class="fa-solid fa-pen-nib mr-1"></i>告诉我作曲家指纹
+                    </button>
+                </div>
+                <p id="hint1-content" class="text-xs text-zinc-400 mt-1.5 hidden leading-relaxed"></p>
+                <p id="hint2-content" class="text-xs text-zinc-400 mt-1.5 hidden leading-relaxed"></p>
+            </div>
+
+        </section>
+    </main>
+
+    <footer class="max-w-6xl w-full mx-auto px-4 pb-6 pt-2 text-center text-[11px] text-zinc-500 space-y-1">
+        <p>Audio previews &amp; album artwork courtesy of Apple iTunes Search API for educational/quiz purposes.</p>
+        <p><a href="/project" class="hover:text-amber-400 transition">← 返回 Projects</a> · <a href="/" class="hover:text-amber-400 transition">zeyuanfeng.com</a></p>
+    </footer>
+
+    <!-- 通关结算 & 电影音乐鉴赏六维雷达图模态框 -->
+    <div id="final-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-zinc-900 border border-amber-500/40 rounded-3xl max-w-4xl w-full p-5 sm:p-8 gold-glow relative my-auto max-h-[92vh] overflow-y-auto">
+            <!-- 关闭/返回按钮 -->
+            <button onclick="closeFinalModal()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition" title="关闭窗口">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- 顶部头衔区 -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-5 mb-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-black flex items-center justify-center text-2xl sm:text-3xl shadow-lg shadow-amber-500/30 shrink-0">
+                        <i class="fa-solid fa-compass-drafting"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                个人电影音乐鉴赏报告
+                            </span>
+                            <span id="report-progress-tag" class="text-xs text-zinc-400 mono-font"></span>
+                        </div>
+                        <h2 id="final-rank-title" class="serif-title text-xl sm:text-2xl font-bold text-white mt-1">
+                            殿堂级金耳朵鉴赏家
+                        </h2>
+                        <p id="final-Archetype-sub" class="text-xs sm:text-sm text-amber-400 font-medium mt-0.5"></p>
+                    </div>
+                </div>
+
+                <!-- 核心三维数据概览 -->
+                <div class="flex items-center gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 w-full sm:w-auto justify-around">
+                    <div class="text-center">
+                        <div class="text-[10px] text-zinc-400 uppercase">总积分</div>
+                        <div id="final-score" class="text-lg sm:text-xl font-bold text-amber-400 mono-font">0</div>
+                    </div>
+                    <div class="h-6 w-px bg-zinc-800"></div>
+                    <div class="text-center">
+                        <div class="text-[10px] text-zinc-400 uppercase">命中率</div>
+                        <div id="final-correct" class="text-lg sm:text-xl font-bold text-white mono-font">0 / 10</div>
+                    </div>
+                    <div class="h-6 w-px bg-zinc-800"></div>
+                    <div class="text-center">
+                        <div class="text-[10px] text-zinc-400 uppercase">最高连胜</div>
+                        <div id="final-streak" class="text-lg sm:text-xl font-bold text-emerald-400 mono-font">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中部核心：左六维雷达图 + 右六大维度量化进度与深度乐评 -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center mb-6">
+                <!-- 六维雷达图 Canvas 容器 (占6列) -->
+                <div class="lg:col-span-6 bg-zinc-950/90 border border-zinc-800/90 rounded-2xl p-4 flex flex-col items-center justify-center relative">
+                    <div class="w-full flex items-center justify-between text-xs text-zinc-400 mb-1 px-1">
+                        <span><i class="fa-solid fa-hexagon-nodes text-amber-400 mr-1"></i>电影配乐审美六维雷达</span>
+                        <span class="mono-font text-[11px] text-amber-400/90">ACOUSTIC RADAR v2.0</span>
+                    </div>
+                    <div class="w-full max-w-[330px] aspect-square relative flex items-center justify-center">
+                        <canvas id="Aesthetic-radar-canvas" class="w-full h-full block"></canvas>
+                    </div>
+                    <p class="text-[11px] text-zinc-400 text-center mt-1">
+                        * 结合本局命中率、盲听切片难度(3s/10s/30s)及无提示盲猜表现综合测算
+                    </p>
+                </div>
+
+                <!-- 六大维度明细条与听觉人格评语 (占6列) -->
+                <div class="lg:col-span-6 flex flex-col gap-4">
+                    <div class="bg-zinc-950/80 border border-zinc-800/90 rounded-2xl p-4">
+                        <div class="text-xs font-bold text-zinc-200 uppercase tracking-wider mb-3 flex items-center justify-between">
+                            <span>六大声学美学维度解析</span>
+                            <span class="text-[11px] text-zinc-400 font-normal">敏锐度指数 (0-100)</span>
+                        </div>
+                        <div id="dimension-bars-container" class="space-y-2.5">
+                            <!-- 动态生成6个维度条 -->
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-amber-500/10 via-zinc-900 to-zinc-950 border border-amber-500/30 rounded-2xl p-4">
+                        <div class="text-xs font-bold text-amber-400 mb-1.5 flex items-center gap-1.5">
+                            <i class="fa-solid fa-feather-pointed"></i> 专属听觉美学诊断报告
+                        </div>
+                        <p id="final-comment" class="text-xs sm:text-sm text-zinc-200 leading-relaxed"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 本局 10 首随机抽选歌单复盘 -->
+            <div class="bg-zinc-950/90 border border-zinc-800 rounded-2xl p-4 mb-6">
+                <div class="text-xs font-bold text-zinc-300 mb-3 flex items-center justify-between">
+                    <span><i class="fa-solid fa-list-check text-amber-400 mr-1.5"></i>本局随机抽选 10 首原声复盘（点击可回放试听）</span>
+                    <span class="text-[11px] text-zinc-400">总曲库 100 首 · 优先抽取未解锁曲目</span>
+                </div>
+                <div id="session-review-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    <!-- 动态生成本局歌单复盘 -->
+                </div>
+            </div>
+
+            <!-- 底部操作按钮组 -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="reshuffleNewSession()" class="flex-1 py-3.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20">
+                    <i class="fa-solid fa-shuffle"></i>
+                    <span>再来随机十首（从100首百大曲库抽新题）</span>
+                </button>
+                <button onclick="closeFinalModal()" class="py-3.5 px-6 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-sm border border-zinc-700 transition">
+                    返回当前唱机
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 100首殿堂曲库图鉴模态框 -->
+    <div id="catalog-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-700 rounded-3xl max-w-5xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-4 mb-4">
+                <div>
+                    <h3 class="serif-title text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-400"></i>
+                        百年影史 100 首高知名度 & 获奖原声殿堂图鉴
+                    </h3>
+                    <p class="text-xs text-zinc-400 mt-0.5">囊括奥斯卡、金球奖、戛纳、日本电影学院奖及全球高票房经典 · 每次刷新优先抽取你未听过的曲目</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="resetSeenHistory()" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs transition" title="重置已听过的进度记录">
+                        重置探索记录
+                    </button>
+                    <button onclick="closePoolCatalogModal()" class="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="catalog-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto pr-1 flex-1">
+                <!-- 动态渲染100首曲库分类卡片 -->
+            </div>
+            <div class="mt-4 pt-3 border-t border-zinc-800 flex flex-wrap justify-between items-center gap-2">
+                <span class="text-xs text-zinc-400">提示：已答过的曲目会直接点亮片名；未答曲目仅展示年份、荣誉标签与配器特征以防剧透。</span>
+                <button onclick="closePoolCatalogModal(); reshuffleNewSession();" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition">
+                    立即抽取10首新题
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. 六大电影音乐鉴赏维度定义
+        // ==========================================
+        const DIMENSIONS = {
+            symphonic: {
+                key: "symphonic",
+                name: "交响史诗",
+                fullName: "古典交响与银幕史诗 (Symphonic & Epic)",
+                shortLabel: "交响史诗",
+                color: "#f59e0b",
+                icon: "fa-wand-sparkles",
+                desc: "对好莱坞黄金新古典主义、铜管号角主导动机（Leitmotif）及奥斯卡级宏大管弦乐织体的辨识力"
+            },
+            synth: {
+                key: "synth",
+                name: "先锋电子",
+                fullName: "先锋电子与科幻张力 (Electronic & Sci-Fi)",
+                shortLabel: "先锋电子",
+                color: "#06b6d4",
+                icon: "fa-wave-square",
+                desc: "对模拟合成器（CS-80/Moog）、教堂管风琴、工业脉冲低音与现代科幻声音设计的敏感度"
+            },
+            auteur: {
+                key: "auteur",
+                name: "大师作者",
+                fullName: "作者电影与世界经典 (Auteur & World Cinema)",
+                shortLabel: "大师作者",
+                color: "#ec4899",
+                icon: "fa-film",
+                desc: "对莫里康内、尼诺·罗塔、谭盾、坂本龙一等三大电影节与奥斯卡外语片巨匠手笔的鉴赏力"
+            },
+            eastern: {
+                key: "eastern",
+                name: "东方动画",
+                fullName: "东方幻想与动画殿堂 (Eastern & Animation)",
+                shortLabel: "东方动画",
+                color: "#10b981",
+                icon: "fa-torii-gate",
+                desc: "对久石让吉卜力交响、川井宪次民谣、新海诚摇滚管弦及皮克斯奥斯卡动画原声的共鸣"
+            },
+            jazz: {
+                key: "jazz",
+                name: "爵士律动",
+                fullName: "爵士律动与都市流行 (Jazz Groove & Noir)",
+                shortLabel: "爵士律动",
+                color: "#a855f7",
+                icon: "fa-guitar",
+                desc: "对大乐队硬波普爵士、冲浪摇滚电吉他、奇数拍特工律动与百老汇歌舞经典的捕捉力"
+            },
+            minimal: {
+                key: "minimal",
+                name: "极简室内",
+                fullName: "现代极简与哲思室内乐 (Minimalism & Chamber)",
+                shortLabel: "极简室内",
+                color: "#3b82f6",
+                icon: "fa-feather",
+                desc: "对极简主义重复钢琴音型、独奏大提琴悲剧挽歌与细腻人物心理室内乐的体悟"
+            }
+        };
+
+        const DIMENSION_KEYS = ["symphonic", "synth", "auteur", "eastern", "jazz", "minimal"];
+
+        // ==========================================
+        // 2. 100 首高知名度 & 获奖经典原声紧凑数据结构与生成器
+        // 字段：[id, primaryDim, secondaryDim, title, enTitle, trackName, composer, year, awardTag, searchQueries, mustMatchTrack, excludeTrack, timeSig, acousticClue, eraHint, composerHint, analysis]
+        // ==========================================
+        const RAW_100_DATA = [
+            // ================= 维度 1：交响史诗 (Symphonic & Epic - 17首) =================
+            [101, "symphonic", "auteur", "《星球大战》", "Star Wars: A New Hope", "Star Wars (Main Title)", "约翰·威廉姆斯 (John Williams)", 1977, "🏆 奥斯卡最佳原创配乐 · AFI影史第一配乐",
+                ["John Williams Star Wars Main Title", "Star Wars Main Title London Symphony"], ["star wars", "main title"], ["jaws", "jurassic", "raiders", "harry potter", "schindler", "superman"],
+                "4/4 拍 · 降B大调新浪漫主义铜管交响",
+                "高亢辉煌的小号与圆号铜管组以纯五度音程强力齐奏开篇，紧接着三连音军鼓与全编制交响弦乐群腾空而起，呈现出古典歌剧序曲般的英雄主义气魄。",
+                "1977年 · 夺得奥斯卡最佳原创配乐、开启现代太空歌剧时代的科幻影史丰碑",
+                "美国国宝级配乐大师代表作，被美国电影学会（AFI）评为百年影史最伟大配乐第一名（约翰·威廉姆斯）。",
+                "《Star Wars Main Title》构建在稳固的降B大调主和弦与纯五度跳进之上，小号声部密集的三连音号角与气势磅礴的弦乐八度齐奏交相辉映，一举复兴了好莱坞全编制交响原声传统。"],
+
+            [102, "symphonic", "auteur", "《大白鲨》", "Jaws", "Main Title (Theme From Jaws)", "约翰·威廉姆斯 (John Williams)", 1975, "🏆 奥斯卡最佳原创配乐 · 惊悚悬疑教科书",
+                ["Theme From Jaws John Williams", "Jaws Main Title John Williams"], ["jaws"], ["star wars", "imperial", "raiders", "superman", "jurassic", "harry potter", "et", "schindler"],
+                "交错节拍 · 极简小二度半音低音逼近",
+                "极低音区的大提琴、低音提琴与倍低音管紧贴地面，仅仅使用 E 与 F 两个相邻半音（小二度）由慢至快、由弱至强地反复交替撞击，高音大号随之发出暗流般的咆哮。",
+                "1975年 · 斯皮尔伯格执导、开创好莱坞暑期档大片概念的奥斯卡最佳配乐获奖作",
+                "仅凭两个半音音符就夺得奥斯卡金像奖，被公认为影史最令人脊背发凉的极简声学动机（约翰·威廉姆斯）。",
+                "这段配乐证明了伟大的电影动机无需复杂旋律：小二度是西方和声中最具压迫感的不协和音程，通过速度与力度的纯粹物理逼近，直接触发听众本能的心跳加速。"],
+
+            [103, "symphonic", "minimal", "《指环王：护戒使者》", "The Lord of the Rings: The Fellowship of the Ring", "Concerning Hobbits", "霍华德·肖 (Howard Shore)", 2001, "🏆 奥斯卡最佳原创配乐 · 奇幻史诗巅峰",
+                ["Howard Shore Concerning Hobbits", "Lord of the Rings Concerning Hobbits"], ["hobbits", "fellowship", "lord of the rings"], ["star wars", "harry potter"],
+                "4/4 拍 · 凯尔特锡哨与田园管弦乐",
+                "爱尔兰锡哨（Tin Whistle）与独奏小提琴在温暖的 D 大调五声音阶上吹奏出轻盈质朴的装饰音旋律，木吉他、手风琴与柔和的弦乐声部如同晨曦微风般层层铺开。",
+                "2001年 · 横扫奥斯卡最佳原创配乐奖的史诗奇幻三部曲开篇巨制",
+                "加拿大作曲家，为该系列谱写了超过90个独立主导动机，将凯尔特民乐与瓦格纳歌剧式管弦体系融为一体（霍华德·肖）。",
+                "《Concerning Hobbits》以极其纯粹的 D 大调自然音阶与五声音阶写成，爱尔兰锡哨特有的呼吸装饰音与巴洛克式通奏低音弦乐结合，构建出田园牧歌般的温暖声学画卷。"],
+
+            [104, "symphonic", "eastern", "《侏罗纪公园》", "Jurassic Park", "Theme from Jurassic Park", "约翰·威廉姆斯 (John Williams)", 1993, "🎬 全球票房冠军经典 · 交响赞美诗",
+                ["Theme from Jurassic Park John Williams", "Jurassic Park Main Theme Williams"], ["jurassic"], ["star wars", "jaws", "raiders", "harry potter", "superman"],
+                "4/4 拍 · 降B大调圆号牧歌交响赞美诗",
+                "孤独温润的圆号与双簧管在静谧中吹奏出缓慢呼吸的小二度叹息音型，随后全编制弦乐与铜管在降B大调上豁然开朗，奏出充满敬畏感与自然礼赞的宏伟主题。",
+                "1993年 · 刷新全球影史票房纪录、开创CG视效纪元的科幻冒险巨作",
+                "没有采用怪兽片的阴森音色，而是借鉴宗教赞美诗与巴洛克庄严慢板来表现史前生命的壮丽（约翰·威廉姆斯）。",
+                "主题核心建立在降B-A-降B的邻音叹息动机之上，紧接着通过五度与六度的大跨度向上跳进，配合竖琴刮奏与温厚圆号齐奏，营造出仰望自然奇观的崇高感。"],
+
+            [105, "symphonic", "jazz", "《夺宝奇兵》", "Raiders of the Lost Ark", "The Raiders March", "约翰·威廉姆斯 (John Williams)", 1981, "🏆 奥斯卡最佳配乐提名 · 冒险进行曲典范",
+                ["The Raiders March John Williams", "Indiana Jones Raiders March Williams"], ["raiders", "indiana jones"], ["star wars", "jaws", "jurassic", "superman"],
+                "4/4 拍 · 附点节奏铜管冒险进行曲",
+                "极具跳跃感的附点八分音符加十六分音符小号主题，在清脆的军鼓与定音鼓烘托下昂首阔步，中段转入浪漫宽广的黄金时代弦乐抒情副题。",
+                "1981年 · 斯皮尔伯格与卢卡斯联手打造的动作冒险影史经典",
+                "作曲家最初写了两个候选主题，导演因两个都太喜欢，建议将它们合二为一成为A段与B段（约翰·威廉姆斯）。",
+                "《The Raiders March》的灵魂在于精准的附点节奏与上行四度跳进。铜管声部略带粗犷的明亮吹奏质感，赋予了旋律永不停歇的向前推进力。"],
+
+            [106, "symphonic", "minimal", "《哈利·波特与魔法石》", "Harry Potter and the Sorcerer's Stone", "Hedwig's Theme", "约翰·威廉姆斯 (John Williams)", 2001, "🏆 奥斯卡最佳配乐提名 · 魔法钢片琴经典",
+                ["Hedwig's Theme John Williams", "Harry Potter Hedwig's Theme"], ["hedwig", "harry potter"], ["star wars", "jaws", "jurassic", "raiders"],
+                "3/8 拍 · E小调钢片琴 (Celesta) 与半音阶华尔兹",
+                "清脆闪烁的钢片琴（Celesta）在空灵的冷色混响中独自敲出带有神秘变化音的三拍子华尔兹动机，随后木管声部以高速旋转的半音阶狂风般卷入，最终交由铜管齐奏。",
+                "2001年 · 风靡全球的魔法奇幻系列电影开山之作",
+                "沿用了柴可夫斯基《胡桃夹子》中赋予钢片琴的奇幻仙气色彩，并加入大量增四度与半音阶游移（约翰·威廉姆斯）。",
+                "《Hedwig's Theme》在 E 小调自然音阶中突然刺入降B与升D等变化半音，钢片琴清冷如冰晶般的金属击弦音色，在听觉上瞬间构建出神秘莫测的魔法世界。"],
+
+            [107, "symphonic", "synth", "《加勒比海盗：黑珍珠号的诅咒》", "Pirates of the Caribbean", "He's a Pirate", "克劳斯·巴德尔特 & 汉斯·季默", 2003, "🎬 全球高票房航海史诗 · 12/8拍交响律动",
+                ["He's a Pirate Klaus Badelt", "Pirates of the Caribbean He's a Pirate"], ["he's a pirate", "pirates of the caribbean"], ["gladiator", "interstellar"],
+                "12/8 与 6/8 拍 · D小调急促跳弓弦乐与铜管",
+                "低音大提琴与现代打击乐以疾风骤雨般的 12/8 拍三连音重音开道，全编制弦乐群与圆号踩着极具穿透力的切分附点节奏破浪前行，充满豪迈不羁的航海张力。",
+                "2003年 · 迪士尼奇幻冒险系列开篇巨制，其主题曲成为全球体育赛场与影迷最熟知的旋律之一",
+                "由汉斯·季默率领 Remote Control 团队与门生克劳斯·巴德尔特共同创作，将现代摇滚鼓点思维注入管弦乐团。",
+                "《He's a Pirate》以紧凑的 D 小调复合三拍子律动为核心，将海尔特式的民间吉格舞曲（Jig）节奏放大为重工业级的现代铜管交响音墙。"],
+
+            [108, "symphonic", "synth", "《角斗士》", "Gladiator", "Now We Are Free", "汉斯·季默 & 丽莎·杰拉德", 2000, "🏆 金球奖最佳原创配乐 · 奥斯卡最佳影片",
+                ["Now We Are Free Hans Zimmer Lisa Gerrard", "Gladiator Now We Are Free"], ["now we are free", "gladiator"], ["pirates", "inception"],
+                "4/4 拍 · 亚美尼亚杜杜克笛与自创语女中音",
+                "苍凉古朴的中东扬琴与亚美尼亚杜杜克笛（Duduk）铺底，女中音歌唱家以深邃的胸腔共鸣吟唱着超越世俗语言限制的空灵圣歌，与厚重的现代交响弦乐融合。",
+                "2000年 · 夺得奥斯卡最佳影片与金球奖最佳原创配乐的古罗马史诗巨作",
+                "德国合成器交响大师与传奇暗潮乐队 Dead Can Dance 主唱跨界合作，人声采用无具体词义的“自创灵魂语”。",
+                "《Now We Are Free》巧妙融合了世界音乐与好莱坞交响。丽莎·杰拉德极具颗粒感的女中音配合五声音阶式的庄严和弦行进，塑造出超越时空的沧桑与自由。"],
+
+            [109, "symphonic", "eastern", "《泰坦尼克号》", "Titanic", "My Heart Will Go On / Hymn to the Sea", "詹姆斯·霍纳 (James Horner)", 1997, "🏆 奥斯卡最佳原创配乐 & 最佳歌曲 · 票房神话",
+                ["James Horner Hymn to the Sea Titanic", "James Horner Rose Titanic"], ["titanic", "hymn to the sea", "rose", "my heart will go on"], ["avatar"],
+                "4/4 拍 · 苏格兰风笛、爱尔兰哨笛与空灵女声吟唱",
+                "悠远空灵的爱尔兰哨笛（Penny Whistle）与苏格兰风笛在辽阔的海面混响中吹奏出五声音阶抒情旋律，伴随无词女声空灵吟唱与宽广的弦乐群浪潮。",
+                "1997年 · 平奥斯卡历史最高11项大奖纪录、原声唱片全球销量突破3000万张的影史传奇",
+                "好莱坞抒情交响大师，酷爱在宏大管弦乐中融入凯尔特风笛与晶莹的合成器人声垫音（詹姆斯·霍纳）。",
+                "霍纳在这部原声中大量采用爱尔兰传统五声音阶与大六度跳进，清脆孤寂的锡哨与深沉辽阔的交响弦乐形成巨大空间反差，兼具史诗苍凉与极致浪漫。"],
+
+            [110, "symphonic", "auteur", "《勇敢的心》", "Braveheart", "For the Love of a Princess / Main Title", "詹姆斯·霍纳 (James Horner)", 1995, "🏆 奥斯卡最佳影片 & 最佳配乐提名",
+                ["James Horner For the Love of a Princess Braveheart", "Braveheart Main Title James Horner"], ["braveheart", "for the love of a princess"], ["titanic"],
+                "4/4 拍 · 尤利安风笛与高地抒情弦乐",
+                "呜咽苍凉的爱尔兰尤利安风笛（Uilleann Pipes）在低音弦乐持续音上方缓缓吹奏出悲壮悠长的苏格兰高地旋律，随后全编制弦乐群以催人泪下的宽广连奏接替升华。",
+                "1995年 · 斩获奥斯卡最佳影片与最佳导演等5项大奖的历史战争史诗",
+                "作曲家与伦敦交响乐团合作，巧妙用音色更为柔和细腻的爱尔兰室内风笛代替刺耳的军用大风笛来演奏抒情段落（詹姆斯·霍纳）。",
+                "曲目建立在苍凉的自然小调与苏格兰五声调式之上，风笛特有的滑音与簧片震颤感，配合层层递进的弦乐四部和声，铸就了90年代最具感染力的历史悲歌。"],
+
+            [111, "symphonic", "minimal", "《辛德勒的名单》", "Schindler's List", "Theme From Schindler's List", "约翰·威廉姆斯 (John Williams)", 1993, "🏆 奥斯卡最佳原创配乐 & 最佳影片",
+                ["Theme From Schindler's List Itzhak Perlman", "John Williams Schindler's List Theme"], ["schindler"], ["star wars", "jaws", "jurassic", "raiders"],
+                "4/4 拍 · 独奏小提琴挽歌与犹太克莱兹默调式",
+                "轻柔的竖琴与木管分解和弦铺底，小提琴大师伊扎克·帕尔曼用极其细腻的揉弦与跨越八度的大跳音程，在 G 小调上拉出如泣如诉、充满祈祷感的室内乐挽歌。",
+                "1993年 · 包揽奥斯卡最佳影片与最佳原创配乐等7项金像奖的黑白历史巨作",
+                "作曲家看完粗剪后对斯皮尔伯格感叹“你需要一位比我更好的作曲家”，导演回答“我知道，但他们都已经去世了”（约翰·威廉姆斯）。",
+                "威廉姆斯在此回归最克制的室内乐美学。小提琴旋律中巧妙融入了东欧犹太传统音乐的五度与小六度叹息跳进，每一个高音泛音都直击灵魂深处。"],
+
+            [112, "symphonic", "eastern", "《狮子王》", "The Lion King", "This Land / King of Pride Rock", "汉斯·季默 (Hans Zimmer)", 1994, "🏆 奥斯卡最佳原创配乐 · 动画票房传奇",
+                ["Hans Zimmer This Land Lion King", "Hans Zimmer King of Pride Rock"], ["this land", "lion king", "pride rock"], ["gladiator", "interstellar", "dune"],
+                "4/4 拍 · 南非祖鲁语合唱 × 交响管弦乐与木笛",
+                "静谧的非洲木笛与深沉的合成器低音铺垫，南非合唱团以高亢苍茫的祖鲁语和声吟唱破晓而出，随后全编制交响弦乐与部落打击乐如万兽奔腾般推向辉煌顶点。",
+                "1994年 · 让作曲家首夺奥斯卡最佳原创配乐小金人的迪士尼2D手绘动画巅峰之作",
+                "作曲家将儿时对父亲离世的思念化入这段庄严的管弦乐挽歌，并邀请南非音乐家 Lebo M 录制地道非洲人声（汉斯·季默）。",
+                "《This Land》完美实现了非洲本土多声部合唱、传统木管与欧洲古典宗教圣咏式弦乐的跨文化融合，慢速推进的切分重音营造出辽阔大地的神圣威严。"],
+
+            [113, "symphonic", "jazz", "《回到未来》", "Back to the Future", "Back to the Future (Main Theme)", "亚伦·史维斯查 (Alan Silvestri)", 1985, "🎬 80年代科幻喜剧票房冠军 · 铜管交响典范",
+                ["Alan Silvestri Back to the Future Overture", "Back to the Future Main Theme Silvestri"], ["back to the future"], ["avengers", "forrest gump"],
+                "4/4 拍 · 增四度闪耀铜管号角与高速弦乐",
+                "以神秘闪烁的木管与弦乐震音引入，定音鼓滚奏后铜管声部突然吹响极具辨识度的上升增四度（Lydian调式色彩）英雄号角，全乐团随即进入活力四射的疾速交响进行。",
+                "1985年 · 罗伯特·泽米吉斯执导、蝉联北美年度票房冠军的时空穿梭科幻经典",
+                "导演最初嫌弃第一版配乐不够大气，作曲家遂调用98人史上最大编制管弦乐团，写出这段充满Lydian明亮色彩的铜管主题（亚伦·史维斯查）。",
+                "曲目大量运用了带有升四级音的利底亚调式（Lydian Mode），这个被称为“科幻魔法音程”的升高四度赋予了铜管号角一种腾空飞跃、冲破时间壁垒的璀璨光泽。"],
+
+            [114, "symphonic", "minimal", "《E.T. 外星人》", "E.T. the Extra-Terrestrial", "Flying Theme", "约翰·威廉姆斯 (John Williams)", 1982, "🏆 奥斯卡最佳原创配乐 · 影史温情科幻丰碑",
+                ["John Williams Flying Theme E.T.", "E.T. Flying Theme Williams"], ["flying", "e.t.", "extra-terrestrial"], ["star wars", "jaws", "jurassic", "raiders"],
+                "3/4 与 4/4 拍 · 纯五度跃升弦乐与竖琴华彩",
+                "在急促期待的木管与竖琴琶音助跑后，全编制弦乐群与圆号突然以一个昂扬的纯五度向上大跳冲破云霄，奏出自由翱翔、宽广明亮的C大调交响旋律。",
+                "1982年 · 夺得奥斯卡最佳原创配乐、盘踞全球影史票房榜首十余年的科幻经典",
+                "在录音室录制结尾长达15分钟的交响乐时，导演斯皮尔伯格为了让作曲家尽情发挥，直接撤掉了画面节拍限制，后期反过来按音乐剪辑画面（约翰·威廉姆斯）。",
+                "《Flying Theme》以纯五度上行跳进接着半音阶蜿蜒上升的旋律线条，在听觉上完美模拟了摆脱地心引力、迎风腾空而起的失重与狂喜。"],
+
+            [115, "symphonic", "auteur", "《超人》", "Superman: The Movie", "Superman March (Main Title)", "约翰·威廉姆斯 (John Williams)", 1978, "🏆 奥斯卡最佳配乐提名 · 超级英雄配乐鼻祖",
+                ["John Williams Superman Main Title", "Superman March John Williams"], ["superman"], ["star wars", "jaws", "jurassic", "raiders", "batman"],
+                "4/4 拍 · C大调纯五度英雄小号进行曲",
+                "高音小号与圆号声部踩着干脆利落的三连音前奏，吹响了一段正直、明亮且刚好对应三个音节呼唤的C大调纯五度跳进旋律，弦乐声部以飞驰的十六分音符伴奏托举。",
+                "1978年 · 奠定现代超级英雄电影工业标准的开山巨作",
+                "作曲家在旋律前三个音符（C - G - C）中巧妙嵌入了三音节节奏动机，仿佛铜管乐器自己在高呼英雄的名字（约翰·威廉姆斯）。",
+                "这首进行曲被誉为超级英雄音乐的元祖法典。大调主三和弦的明亮号角与充满弹性的切分三连音，将古典骑士精神与美式漫画的乐观主义结合得天衣无缝。"],
+
+            [116, "symphonic", "auteur", "《阿拉伯的劳伦斯》", "Lawrence of Arabia", "Overture (Main Title)", "莫里斯·雅尔 (Maurice Jarre)", 1962, "🏆 奥斯卡最佳原创配乐 & 最佳影片",
+                ["Maurice Jarre Lawrence of Arabia Overture", "Lawrence of Arabia Main Title Jarre"], ["lawrence of arabia"], ["merry christmas"],
+                "4/4 拍 · 定音鼓沙暴引入与辽阔大六度弦乐长调",
+                "密集的定音鼓与异域打击乐敲击出灼热紧迫的沙漠行军律动，紧接着全编制弦乐群与圆号犹如海市蜃楼般缓缓升起，奏出跨越八度与六度的绵延壮丽旋律。",
+                "1962年 · 大卫·里恩执导、狂揽7项奥斯卡金像奖的70毫米胶片史诗巨作",
+                "法国配乐巨匠成名作，他甚至在乐团中加入了罕见的电子琴鼻祖“马特诺音波琴（Ondes Martenot）”来描绘大漠幻象（莫里斯·雅尔）。",
+                "这段主旋律通过高音区向下滑落的大六度与增二度音程，搭配宽银幕式的漫长弦乐连奏，仅凭听觉便在脑海中勾勒出无边无际的金色沙海。"],
+
+            [117, "symphonic", "synth", "《复仇者联盟》", "The Avengers", "The Avengers (Main Theme)", "亚伦·史维斯查 (Alan Silvestri)", 2012, "🎬 现代漫威超英交响代表符号",
+                ["Alan Silvestri The Avengers", "The Avengers Main Theme Silvestri"], ["the avengers", "avengers"], ["back to the future", "forrest gump"],
+                "4/4 拍 · 切分弦乐助跑与圆号五度集结号角",
+                "低音弦乐与现代重击鼓点以紧迫的十六分音符切分音型蓄力助跑，随后八支圆号（French Horns）与小号齐声吹响极具凝聚力的纯五度上行集结号角。",
+                "2012年 · 影史首部突破15亿美元票房的超级英雄集结商业巨制",
+                "继《回到未来》《阿甘正传》后，这位好莱坞老派交响大师为现代漫威宇宙锻造了最具辨识度的铜管图腾（亚伦·史维斯查）。",
+                "在21世纪大片普遍依赖单调合成器音墙的背景下，《The Avengers》坚守了传统铜管主导动机写法：小调蓄力铺垫后突然向高亢的五度长音爆发，极具团魂感召力。"],
+
+            // ================= 维度 2：先锋电子与科幻 (Electronic & Sci-Fi - 17首) =================
+            [201, "synth", "minimal", "《星际穿越》", "Interstellar", "Cornfield Chase / Day One", "汉斯·季默 (Hans Zimmer)", 2014, "🏆 奥斯卡最佳配乐提名 · 太空管风琴神作",
+                ["Hans Zimmer Cornfield Chase Interstellar", "Hans Zimmer Day One Interstellar"], ["cornfield", "interstellar", "day one"], ["inception", "gladiator", "dune"],
+                "4/4 拍 · 1926年伦敦圣殿教堂巨型管风琴交响",
+                "以清脆的高音钢琴与长笛急速琶音固定音型铺底，伦敦圣殿教堂的巨型管风琴低音音管缓缓切入，利用庞大的风箱空气震动营造出宇宙级的孤独与神圣空间。",
+                "2014年 · 克里斯托弗·诺兰执导的硬核天体物理科幻院线巨制",
+                "作曲家在不知道具体剧本为太空题材的情况下，仅凭导演写下的一页关于亲子与时间的信件便谱写出这段管风琴核心主题（汉斯·季默）。",
+                "《Cornfield Chase》在 A 小调与 F 大调之间通过每秒四次的十六分音符分解和弦不断推进。巨型管风琴兼具原始机械与模拟合成器的声学特质，赋予曲目震撼的宿命感。"],
+
+            [202, "synth", "symphonic", "《盗梦空间》", "Inception", "Time", "汉斯·季默 (Hans Zimmer)", 2010, "🏆 奥斯卡最佳配乐提名 · 四和弦渐强音墙",
+                ["Hans Zimmer Time Inception", "Inception Time Original Soundtrack"], ["time", "inception"], ["interstellar", "dark knight", "dunkirk"],
+                "4/4 拍 · 极简四和弦循环渐强音墙与混响电吉他",
+                "从幽暗深邃的钢琴低音与大提琴长音极弱起步，全曲严格锁定在四个和弦的循环中，混响电吉他与巨型铜管合成器音墙一层层推向震耳欲聋的顶峰，最后归于一记孤独钢琴。",
+                "2010年 · 斩获4项奥斯卡技术大奖的多层梦境结构科幻大片",
+                "将法国香颂名曲《Non, je ne regrette rien》放慢数十倍提取出低沉铜管轰鸣，并邀请传奇乐队 The Smiths 吉他手 Johnny Marr 助阵（汉斯·季默）。",
+                "《Time》全曲仅由 Am - Em - G - D 四个和弦无限循环构成。在没有任何复杂转调的情况下，纯粹依靠配器密度的递增与电吉他泛音，完成了极具催眠感的声学筑梦。"],
+
+            [203, "synth", "jazz", "《银翼杀手》", "Blade Runner", "Blade Runner Blues / Main Titles", "范吉利斯 (Vangelis)", 1982, "🎬 赛博朋克科幻配乐开山鼻祖",
+                ["Vangelis Blade Runner Blues", "Vangelis Blade Runner Main Titles"], ["blade runner"], ["chariots of fire", "conquest of paradise"],
+                "慢板 · 传奇 Yamaha CS-80 模拟合成器",
+                "极具厚重感与金属呼吸感的 Yamaha CS-80 多复音模拟合成器铜管音色，在漫长的数字混响空间中缓缓滑音，搭配慵懒忧郁的电子颤音与夜雨般的迷幻氛围。",
+                "1982年 · 雷德利·斯科特执导的赛博朋克视觉与听觉美学奠基作",
+                "希腊电子音乐巨匠，曾凭《火战车》夺得奥斯卡，擅长用具备多复音触后感应的模拟合成器即兴演奏出交响级动态（范吉利斯）。",
+                "范吉利斯使用一代神机 Yamaha CS-80 配合超长混响尾音，定义了整个赛博朋克流派的听觉范式。手指按压琴键力度的微妙变化让合成器发出了如同人类叹息般的滤波扫频。"],
+
+            [204, "synth", "eastern", "《沙丘》", "Dune: Part One", "Paul's Dream / Ripples in the Sand", "汉斯·季默 (Hans Zimmer)", 2021, "🏆 奥斯卡最佳原创配乐 · 异星声音设计巅峰",
+                ["Hans Zimmer Paul's Dream Dune", "Hans Zimmer Ripples in the Sand Dune"], ["dune", "paul's dream", "ripples in the sand"], ["interstellar", "inception", "lion king"],
+                "复合节拍 · 异星风沙合成器与部落极限女声",
+                "完全摒弃传统欧洲管弦乐器，采用经过电子调制的人声咽音吟唱、改造过的金属刮擦打击乐、低沉的合成器沙暴脉冲以及撕裂空气般的原始部落女声高音呐喊。",
+                "2021年 · 斩获奥斯卡最佳原创配乐等6项金像奖的史诗科幻巨制",
+                "作曲家认为“外星文明不可能使用19世纪维也纳的小提琴和圆号”，因此耗费数月自制了全新的异星混合合成音源（汉斯·季默）。",
+                "《Dune》原声是现代声音设计与音乐配乐彻底融合的典范。通过将大提琴与人声输入模拟合成器进行环形调制，创造出了既像远古沙漠风声又像未来宗教仪式的独特音色。"],
+
+            [205, "synth", "minimal", "《社交网络》", "The Social Network", "Hand Covers Bruise", "特伦特·雷诺 & 阿提喀斯·罗斯", 2010, "🏆 奥斯卡最佳原创配乐 · 工业电子极简经典",
+                ["Trent Reznor Hand Covers Bruise", "The Social Network Hand Covers Bruise"], ["hand covers bruise", "social network"], ["soul", "gone girl"],
+                "4/4 拍 · 工业暗潮持续低音 × 脆弱高音钢琴",
+                "底层是一道持续嗡鸣、带有轻微失真与磁带磨损颗粒感的极低频工业合成器 Drone 音墙，上方则是冰冷、孤立、仿佛随时会碎裂的极简高音钢琴单音敲击。",
+                "2010年 · 大卫·芬奇执导、夺得奥斯卡最佳原创配乐的互联网时代传记经典",
+                "由传奇工业摇滚乐队“九寸钉（Nine Inch Nails）”灵魂人物跨界操刀，彻底改写了现代都市剧情片的电子配乐语言。",
+                "《Hand Covers Bruise》将“冰冷的故障电子底噪”与“温暖却疏离的原声钢琴”并置。底层持续数分钟不换和弦的合成器持续音制造出无形的焦虑感，精准映射了数字时代的疏离。"],
+
+            [206, "synth", "jazz", "《黑客帝国》", "The Matrix", "Clubbed to Death (Kurayamino Variation)", "罗伯·道根 (Rob Dougan) / 唐·戴维斯", 1999, "🏆 斩获4项奥斯卡奖 · 电子碎拍与古典弦乐碰撞",
+                ["Rob Dougan Clubbed to Death", "Clubbed to Death Matrix"], ["clubbed to death"], ["tron", "inception"],
+                "4/4 拍 · 90年代Trip-Hop重型碎拍鼓点 × 悲剧弦乐与钢琴",
+                "庄严戏剧化的古典交响弦乐序奏后，极具冲击力的 90 年代 Trip-Hop / Breakbeat 电子碎拍重鼓点突然切入，上方流淌着冷酷、孤独且带有爵士蓝调色彩的独奏钢琴旋律。",
+                "1999年 · 包揽4项奥斯卡大奖、定义世纪末赛博黑客美学的科幻动作里程碑",
+                "澳大利亚作曲家将英国古典大师埃尔加《谜语变奏曲》的弦乐采样与地下电子碎拍（Breakbeat）狂野嫁接（罗伯·道根）。",
+                "这首曲目完美代表了《黑客帝国》“古典哲学内核+未来数字外壳”的声音美学：厚重的采样碎拍鼓点提供冷酷机械律动，而钢琴与大提琴则保留了觉醒者的挣扎。"],
+
+            [207, "synth", "symphonic", "《蝙蝠侠：黑暗骑士》", "The Dark Knight", "Why So Serious? / Like a Dog Chasing Cars", "汉斯·季默 & 詹姆斯·纽顿·霍华德", 2008, "🏆 格莱美最佳影视配乐 · 刀片刮擦大提琴实验",
+                ["Hans Zimmer Why So Serious Dark Knight", "Hans Zimmer Like a Dog Chasing Cars"], ["why so serious", "dog chasing cars", "dark knight"], ["joker", "inception"],
+                "4/4 拍 · 单音持续递增张力电大提琴与工业打击乐",
+                "用金属剃须刀片在电大提琴琴弦上缓慢滑擦出令人毛骨悚然的单音持续蜂鸣（从D到升D的微分音拉扯），或伴随急促的电子低音脉冲与双翼铜管强力推进。",
+                "2008年 · 全球票房破10亿美元、重写超英犯罪片深度的影史高分神作",
+                "两位配乐大师分工合作：霍华德负责双面人的古典抒情弦乐，季默则用一记长达数分钟不松懈的剃须刀刮弦单音塑造小丑的无序恐怖。",
+                "《Why So Serious?》抛弃了传统旋律线条，借鉴了20世纪先锋派作曲家潘德列茨基的微复调噪音技法，用持续升温的频率压迫感直接挑战听众的心理极限。"],
+
+            [208, "synth", "minimal", "《奥本海默》", "Oppenheimer", "Can You Hear the Music", "路德维希·戈兰松 (Ludwig Göransson)", 2023, "🏆 奥斯卡最佳原创配乐 · 21次变速小提琴脉冲",
+                ["Ludwig Goransson Can You Hear the Music", "Oppenheimer Can You Hear the Music"], ["can you hear the music", "oppenheimer"], ["tenet", "black panther"],
+                "复合变速节拍 · 极速小提琴群六连音与模拟合成器",
+                "完全不使用架子鼓打击乐，独奏小提琴与弦乐群在短短两分钟内经历了21次不断加速的节拍转换，高速六连音跳弓如同原子裂变的链式反应般层层叠加，配合轰鸣的合成器低频。",
+                "2023年 · 狂揽奥斯卡最佳影片与最佳原创配乐等7项金像奖的传记巨制",
+                "瑞典新生代配乐鬼才，听从导演诺兰建议将“小提琴”作为全片核心乐器，因小提琴既能极度浪漫，也能在一瞬间变成神经质的恐怖噪音（路德维希·戈兰松）。",
+                "《Can You Hear the Music》是一场数学与声学的极限实验：为了表现量子物理的微观旋转，乐曲每隔几小节就进行一次节拍调制（Metric Modulation），营造出令人眩晕的智力狂飙。"],
+
+            [209, "synth", "symphonic", "《创：战纪》", "Tron: Legacy", "Derezzed / The Grid / Son of Flynn", "蠢朋克 (Daft Punk)", 2010, "🎬 法国传奇电子双人组 × 85人交响乐团",
+                ["Daft Punk Derezzed Tron Legacy", "Daft Punk Son of Flynn Tron Legacy"], ["tron", "derezzed", "son of flynn", "the grid"], ["blade runner", "matrix"],
+                "4/4 拍 · 模块化合成器高速琶音器 × 交响铜管",
+                "极具颗粒感的复古模拟合成器高速十六分音符琶音序列（Arpeggio）精准脉冲，上方叠加以威严冷峻的铜管与弦乐八度齐奏，兼具赛博数字网格的秩序感与古典史诗感。",
+                "2010年 · 迪士尼赛博数字世界视效科幻代表作",
+                "由佩戴机器人头盔的法国传奇电子乐团跨界操刀，在伦敦 AIR 录音室召集 85 人管弦乐团与模块化合成器同步录制（Daft Punk）。",
+                "Daft Punk 在此实现了模拟电子琶音与浪漫派交响乐的无缝嫁接。冰冷精确的电子时钟脉冲充当骨架，而管弦乐团则提供了机器世界里罕见的呼吸与温度。"],
+
+            [210, "synth", "symphonic", "《终结者2：审判日》", "Terminator 2: Judgment Day", "Main Title (Terminator 2 Theme)", "布拉德·菲德尔 (Brad Fiedel)", 1991, "🏆 斩获4项奥斯卡奖 · 铁砧金属敲击与合成器",
+                ["Brad Fiedel Terminator 2 Main Title", "Terminator 2 Theme Brad Fiedel"], ["terminator"], ["robocop", "aliens", "blade runner"],
+                "6/8 或 13/16 复合节拍 · 沉重工业金属锤击与悲壮合成器弦乐",
+                "极具标志性的“当-当-当-当当”五连工业金属铁砧锤击节奏（带混响的铸铁敲击采样）作为骨架，上方缓缓浮现出冷峻而带有悲剧宿命感的模拟合成器铜管与弦乐旋律。",
+                "1991年 · 詹姆斯·卡梅隆执导、全球票房冠军科幻动作神作",
+                "作曲家在厨房里用麦克风敲击平底铸铁锅录下了那个举世闻名的金属五连击节奏，奠定了机械末日的听觉图腾（布拉德·菲德尔）。",
+                "这段主题的复合节拍（6/8拍附点切分）模仿了机械骨骼冰冷沉稳的步伐，而五声音阶式的缓慢上行合成器旋律则赋予了冷酷机器一丝英雄式的悲悯。"],
+
+            [211, "synth", "symphonic", "《2001太空漫游》", "2001: A Space Odyssey", "Also sprach Zarathustra (查拉图斯特拉如是说)", "理查·施特劳斯 (Richard Strauss)", 1968, "🏆 奥斯卡视效大奖 · 宇宙交响序曲终极图腾",
+                ["Also sprach Zarathustra Karajan", "2001 A Space Odyssey Zarathustra"], ["zarathustra", "2001"], ["star wars", "interstellar"],
+                "4/4 拍 · 管风琴极低频持续音 × C大调纯五度铜管日出",
+                "管风琴与倍低音提琴在人类听觉极限的极低频 C 音上持续轰鸣，三支小号庄严地吹响 C - G - C 纯五度与八度自然泛音列，定音鼓以雷霆万钧的三连音反复猛击，管风琴辉煌全奏。",
+                "1968年 · 库布里克执导、彻底改写科幻电影哲学高度的殿堂级神作",
+                "选用晚期浪漫派巨匠理查·施特劳斯作于1896年的交响诗引子，使其永远与人类进化和宇宙日出绑定。",
+                "这段被称为“宇宙黎明”的引子完全建立在物理声学的自然泛音列（C-G-C）之上，小号在大三和弦与小三和弦之间三次宏伟切换，象征着混沌初开与智慧觉醒。"],
+
+            [212, "synth", "minimal", "《敦刻尔克》", "Dunkirk", "Supermarine / The Mole", "汉斯·季默 (Hans Zimmer)", 2017, "🏆 奥斯卡最佳配乐提名 · 谢帕德音调与怀表滴答",
+                ["Hans Zimmer Supermarine Dunkirk", "Hans Zimmer The Mole Dunkirk"], ["supermarine", "dunkirk", "the mole"], ["interstellar", "inception", "tenet"],
+                "4/4 拍 · 诺兰怀表采样滴答脉冲 × 无限上升谢帕德错觉音阶",
+                "导演个人怀表的真实机械滴答声被放大为全曲紧迫的节拍脉冲，弦乐群与合成器采用声学错觉“谢帕德音调（Shepard Tone）”，营造出音高永无止境向上攀升的窒息紧迫感。",
+                "2017年 · 斩获3项奥斯卡大奖的沉浸式二战撤退视听杰作",
+                "作曲家与诺兰将整部106分钟的电影当成一首永不停止的巨型电子交响乐来编排，用声学错觉制造持续100分钟的肾上腺素（汉斯·季默）。",
+                "谢帕德音调利用三个相差八度的声部同时上行——高八度声部渐弱消失，低八度声部渐强补位，让大脑产生“音乐永远在往高处绷紧却永不爆炸”的极限张力。"],
+
+            [213, "synth", "symphonic", "《疯狂的麦克斯4：狂暴之路》", "Mad Max: Fury Road", "Brothers in Arms", "Junkie XL (Tom Holkenborg)", 2015, "🏆 斩获6项奥斯卡大奖 · 工业战鼓与失真摇滚管弦",
+                ["Junkie XL Brothers in Arms Mad Max", "Mad Max Fury Road Brothers in Arms"], ["brothers in arms", "mad max", "fury road"], ["dune", "dunkirk"],
+                "4/4 拍 · 巨型日本太鼓、工业油桶重击 × 过载合成器与铜管",
+                "十余面巨型大鼓与工业金属打击乐以狂暴的引擎活塞律动轰鸣，失真电吉他、重低音合成器锯齿波与长号铜管群在宽广的五度音程上发出末日废土般的悲壮咆哮。",
+                "2015年 · 乔治·米勒执导、横扫奥斯卡6项技术大奖的废土动作神作",
+                "荷兰电子摇滚配乐鬼才，在曲中动用了多达 80 轨真实与合成打击乐器以及管弦乐团，打造出引擎轰鸣般的交响乐（Junkie XL）。",
+                "《Brothers in Arms》在狂暴的重金属工业鼓点之上，意外地铺设了一条极具古典宗教悲剧感的宽广弦乐长线条，让极速追逐升华为一场末日救赎歌剧。"],
+
+            [214, "synth", "minimal", "《万物理论》", "The Theory of Everything", "Cambridge, 1963 / Domestic Pressures", "约翰·约翰逊 (Jóhann Jóhannsson)", 2014, "🏆 金球奖最佳原创配乐 · 新古典极简与温暖电子",
+                ["Johann Johannsson Cambridge 1963", "Theory of Everything Cambridge 1963"], ["cambridge, 1963", "theory of everything", "domestic pressures"], ["arrival", "sicario"],
+                "3/4 或 4/4 拍 · 温暖新古典钢琴琶音 × 室内弦乐与微光电子",
+                "轻快晶莹的钢琴与木管以旋转不停的圆舞曲琶音模拟星体与思维的运转，温暖的大提琴与弦乐声部切入，底层铺垫着冰岛式温润柔和的磁带循环电子氛围。",
+                "2014年 · 聚焦物理学家霍金生平、斩获金球奖最佳原创配乐与奥斯卡影帝的传记佳作",
+                "已故冰岛先锋作曲大师代表作，擅长将巴洛克新古典室内乐与极简电子实验无缝编织（约翰·约翰逊）。",
+                "《Cambridge, 1963》以不断循环旋转的钢琴六连音分解和弦为核心，既象征着单车车轮的转动，也隐喻着宇宙星系的旋转，明亮的大调色彩中透着温暖的人文光辉。"],
+
+            [215, "synth", "minimal", "《降临》", "Arrival", "On the Nature of Daylight", "马克斯·里希特 (Max Richter) / 约翰·约翰逊", 2016, "🏆 奥斯卡8项提名 · 后极简主义弦乐五重奏",
+                ["Max Richter On the Nature of Daylight", "Arrival On the Nature of Daylight"], ["nature of daylight", "max richter"], ["theory of everything", "interstellar"],
+                "4/4 拍 · 后极简主义弦乐五重奏与Moog模拟低音",
+                "大提琴与中提琴在降B小调上以极其缓慢深沉的八分音符脉冲奏出循环往复的四小节固定和弦，一把小提琴在极高音区如游丝般浮现出绵延不绝、悲悯克制的对位长旋律。",
+                "2016年 · 丹尼斯·维伦纽瓦执导、探讨非线性时间与语言学的哲学科幻经典",
+                "当代新古典与后极简主义领军人物代表作，在结构上致敬了巴赫与珀塞尔的帕萨卡利亚舞曲（马克斯·里希特）。",
+                "全曲遵循黄金分割般的动态建构：底部的弦乐群与温暖的Moog合成器低音始终锁定在同一个五声部和弦循环上呼吸，高音小提琴则通过漫长的挂留音传递出超越时间的悲悯。"],
+
+            [216, "synth", "jazz", "《蜘蛛侠：平行宇宙》", "Spider-Man: Into the Spider-Verse", "Spider-Man Loves You / Only One Spider-Man", "丹尼尔·彭伯顿 (Daniel Pemberton)", 2018, "🏆 奥斯卡最佳动画长片 · 黑胶搓盘与电子管弦",
+                ["Daniel Pemberton Only One Spider-Man", "Daniel Pemberton Into the Spider-Verse"], ["spider-man", "spider-verse", "pemberton"], ["avengers", "batman"],
+                "4/4 拍 · 街头黑胶唱机搓盘 (Turntable Scratch) × 电子合成器与铜管",
+                "将布鲁克林街头嘻哈黑胶搓盘（DJ Scratching）、重型808电子鼓低音与气势恢宏的管弦乐铜管号角强行碰撞，甚至把交响乐团录制成黑胶唱片再由DJ现场搓碟采样。",
+                "2018年 · 横扫奥斯卡与金球奖最佳动画长片、打破传统三维动画视觉范式的革新之作",
+                "英国鬼才作曲家，为了创造独一无二的街头超英声音，真的先把管弦乐印在黑胶盘上再进行打碟刮擦录制（丹尼尔·彭伯顿）。",
+                "这部原声开创了“漫威管弦乐×街头涂鸦电子”的新流派，高频刺耳的黑胶搓盘声与厚重的铜管五度齐奏交替出现，赋予音乐强烈的分镜漫画跳跃感。"],
+
+            [217, "synth", "symphonic", "《信条》", "Tenet", "Posterity / Rainy Night in Tallinn", "路德维希·戈兰松 (Ludwig Göransson)", 2020, "🏆 奥斯卡最佳视效 · 逆向倒放声波与重工业合成器",
+                ["Ludwig Goransson Posterity Tenet", "Ludwig Goransson Rainy Night in Tallinn"], ["posterity", "tallinn", "tenet"], ["oppenheimer", "inception"],
+                "复合节拍 · 正向与逆向倒放交织的过载电吉他与低音合成器",
+                "极具压迫感的工业重低音脉冲与经过失真处理的电吉他呼吸声，部分管弦乐与铜管声部被直接进行物理“时间倒放（Reverse Audio）”处理，产生反向吸入般的奇异声学听感。",
+                "2020年 · 诺兰执导的时空逆转高概念科幻谍战大片",
+                "接替因制作《沙丘》而分身乏术的汉斯·季默，戈兰松录制了大量真实乐器后再倒放给乐手模仿演奏，实现了正逆播放皆成立的回文音乐（路德维希·戈兰松）。",
+                "《Posterity》在声音物理层面上直接贯彻了“熵减逆转”概念：逆向包络（Reverse Envelope）的铜管与高速推进的电子碎拍相互撕扯，制造出时空折叠般的听觉震撼。"],
+
+            // ================= 维度 3：大师作者电影 (Auteur & World Cinema - 17首) =================
+            [301, "auteur", "symphonic", "《教父》", "The Godfather", "Love Theme from The Godfather / Waltz", "尼诺·罗塔 (Nino Rota)", 1972, "🏆 奥斯卡最佳影片 & 格莱美最佳影视配乐",
+                ["Nino Rota The Godfather Waltz", "Nino Rota Love Theme from The Godfather"], ["godfather"], ["amarcord", "8 1/2", "romeo"],
+                "4/4 与 3/4 拍 · 西西里曼陀铃与暗黑独奏小号",
+                "孤独而略带颤音的独奏小号在漆黑声场中吹奏出缓慢哀婉的小调半音阶旋律，随后融入西西里曼陀铃、手风琴与吉他的三拍子华尔兹伴奏，充满古老家族的宿命感。",
+                "1972年 · 科波拉执导、夺得奥斯卡最佳影片的美国新好莱坞黑帮史诗巅峰",
+                "意大利电影配乐巨匠，费里尼的终身御用搭档，擅长在悲剧性宿命旋律中融入地中海民间舞曲色彩（尼诺·罗塔）。",
+                "这段旋律在 C 小调上围绕着小六度与半音邻音盘旋，独奏小号沙哑的弱音器质感与曼陀铃清脆的拨弦形成强烈对比，既像温柔的西西里古老情歌，又暗藏权力挽歌的阴影。"],
+
+            [302, "auteur", "symphonic", "《黄金三镖客》", "The Good, the Bad and the Ugly", "The Ecstasy of Gold / Main Title", "埃尼奥·莫里康内 (Ennio Morricone)", 1966, "🏆 入选格莱美名人堂 · 意式西部片巅峰神作",
+                ["Ennio Morricone The Ecstasy of Gold", "Ennio Morricone The Good the Bad and the Ugly"], ["ecstasy of gold", "good, the bad"], ["cinema paradiso", "malena", "1900"],
+                "4/4 拍 · 荒原木管、口哨与华彩女高音交响",
+                "英国管与陶笛/口哨吹奏出极度张扬的纯四度荒原呼唤动机，或者伴随马蹄般的钢琴碎步节奏，女高音埃达·德尔·奥尔索无词的华彩高音直冲云霄。",
+                "1966年 · 赛尔乔·莱昂内执导的意大利式西部片（Spaghetti Western）不朽丰碑",
+                "意大利国宝级大师，彻底颠覆传统西部片配乐，大胆将口哨、冲浪电吉他、郊狼嚎叫感木管与巴洛克神圣女高音融合（埃尼奥·莫里康内）。",
+                "莫里康内运用了极具先锋实验精神的配器法：将粗粝的世俗音响与神圣的教堂女高音强行碰撞，在荒凉戈壁中构建出古典歌剧般的史诗张力。"],
+
+            [303, "auteur", "minimal", "《天堂电影院》", "Cinema Paradiso", "Cinema Paradiso (Love Theme)", "埃尼奥·莫里康内 & 安德烈·莫里康内", 1988, "🏆 奥斯卡最佳外语片 & 戛纳评审团大奖",
+                ["Ennio Morricone Cinema Paradiso", "Yo-Yo Ma Ennio Morricone Cinema Paradiso"], ["cinema paradiso"], ["ecstasy of gold", "malena"],
+                "4/4 拍 · 怀旧钢琴与抒情弦乐室内乐",
+                "清澈温暖的独奏钢琴在降B大调上弹出深情的分解和弦，独奏小提琴（或大提琴）以如泣如诉的连奏缓缓接过大六度跳进的主旋律，管弦乐声部温柔地将其包裹。",
+                "1988年 · 托纳多雷“时空三部曲”之一，斩获奥斯卡最佳外语片的意大利怀旧杰作",
+                "由意大利配乐大师与其子安德烈共同谱写，用最纯粹的意大利歌剧咏叹调式旋律线条致敬胶片电影黄金年代（莫里康内父子）。",
+                "曲目采用经典的欧洲浪漫主义歌剧咏叹调写就。旋律线条在平稳的级进之后突然向上跃出宽广的六度与七度音程，随后缓缓回落，将时光流逝的眷恋抒发得淋漓尽致。"],
+
+            [304, "auteur", "jazz", "《海上钢琴师》", "The Legend of 1900", "Playing Love / Magic Waltz", "埃尼奥·莫里康内 (Ennio Morricone)", 1998, "🏆 金球奖最佳原创配乐 · 远洋邮轮浪漫钢琴",
+                ["Ennio Morricone Playing Love", "The Legend of 1900 Playing Love Morricone"], ["playing love", "1900"], ["cinema paradiso", "ecstasy of gold"],
+                "4/4 拍 · 独奏三角钢琴与温柔单簧管室内弦乐",
+                "独奏三角钢琴在温暖静谧的声场中弹奏出细腻如波浪轻抚的抒情旋律，挂留音与柔和的七和弦缓缓解决，随后单簧管与弦乐声部悄然加入，流露出极致的纯粹与孤独。",
+                "1998年 · 托纳多雷执导、夺得金球奖最佳原创配乐奖的音乐传奇电影",
+                "大师在这部电影中同时展现了拉格泰姆爵士炫技钢琴与极致内敛的欧洲古典室内乐抒情功力（埃尼奥·莫里康内）。",
+                "《Playing Love》以极具歌唱性的钢琴高音旋律线为核心，频繁使用四度挂留和弦（sus4）向大三和弦的延迟解决，在听觉上传递出欲言又止的深情。"],
+
+            [305, "auteur", "eastern", "《花样年华》", "In the Mood for Love", "Yumeji's Theme (梦二主题曲)", "梅林茂 (Shigeru Umebayashi)", 2000, "🏆 戛纳电影节双料大奖 · BBC世纪百大佳片第2名",
+                ["Shigeru Umebayashi Yumeji's Theme", "In the Mood for Love Yumeji's Theme"], ["yumeji", "in the mood for love"], ["2046", "grandmaster"],
+                "3/4 拍 · 幽暗大提琴独奏与拨弦圆舞曲",
+                "小提琴与低音提琴以干脆克制的拨弦（Pizzicato）敲出三拍子慢速华尔兹律动，一把音色浓郁而压抑的大提琴在 G 小调上拉出百转千回、欲语还休的滑音与揉弦旋律。",
+                "2000年 · 王家卫执导、斩获戛纳最佳男主角与技术大奖的东方美学巅峰",
+                "日本配乐大师代表作，这段三拍子华尔兹被王家卫反复运用于60年代香港旗袍与雨夜的光影之中（梅林茂）。",
+                "《Yumeji's Theme》巧妙地用西方三拍子圆舞曲的优雅骨架，承载了东方美学中极致的克制与隐忍。大提琴声部在固定音型上反复徘徊却始终不向明亮大调解决，营造出挥之不去的宿命。"],
+
+            [306, "auteur", "eastern", "《末代皇帝》", "The Last Emperor", "Rain (I Want a Divorce) / Main Title Theme", "坂本龙一、大卫·拜恩 & 苏聪", 1987, "🏆 奥斯卡最佳原创配乐 · 9项奥斯卡全胜传奇",
+                ["Ryuichi Sakamoto Rain The Last Emperor", "The Last Emperor Theme Sakamoto David Byrne"], ["last emperor", "rain", "where is armo"], ["merry christmas", "revenant"],
+                "4/4 拍 · 东方五声调式与西方表现主义急促弦乐交织",
+                "急促紧迫的西方现代管弦乐弦乐群十六分音符切分律动，与苍凉华丽的东方皇城五声音阶旋律及中国传统民乐（古筝/二胡/编钟色彩）在宽银幕声场中剧烈碰撞。",
+                "1987年 · 贝托鲁奇执导、提名9项奥斯卡并9项全中的历史传记史诗",
+                "日本音乐教父坂本龙一在一周内紧急谱写40余首配乐，与中国作曲家苏聪、美国摇滚大师大卫·拜恩共同捧回奥斯卡最佳原创配乐金像奖。",
+                "原声完美捕捉了封建帝国崩塌与时代洪流的冲撞：既有紫禁城传统礼乐的庄严五声骨架，又有坂本龙一标志性的现代半音阶弦乐张力。"],
+
+            [307, "auteur", "eastern", "《卧虎藏龙》", "Crouching Tiger, Hidden Dragon", "Crouching Tiger, Hidden Dragon / The Eternal Vow", "谭盾 (Tan Dun) · 马友友大提琴独奏", 2000, "🏆 奥斯卡最佳原创配乐 & 最佳外语片",
+                ["Tan Dun Yo-Yo Ma Crouching Tiger", "The Eternal Vow Yo-Yo Ma Tan Dun"], ["crouching tiger", "eternal vow"], ["hero", "memoirs of a geisha"],
+                "4/4 拍 · 苍凉独奏大提琴滑音 × 新疆手鼓与竹笛",
+                "大提琴大师马友友模仿中国二胡的滑音与揉弦技法，在苍茫的低音区拉出充满江湖孤寂感的东方旋律，伴随急促的民族手鼓与清越的巴乌/竹笛对答。",
+                "2000年 · 李安执导、狂揽奥斯卡最佳外语片与最佳原创配乐等4项金像奖的武侠丰碑",
+                "华人作曲家谭盾仅用两周时间完成谱曲，将西方古典交响、马友友的大提琴独奏与中国西北戏曲打击乐融为一体。",
+                "谭盾让西方大提琴发出了近似马头琴与二胡的微分音哭腔（Portamento），在竹林清风般的木管留白与密集的武打鼓点之间，构建出“大音希声”的东方写意江湖。"],
+
+            [308, "auteur", "eastern", "《英雄》", "Hero", "Hero: Overture / For the World", "谭盾 (Tan Dun) · 帕尔曼小提琴独奏", 2002, "🏆 奥斯卡最佳外语片提名 · 开启中国商业大片时代",
+                ["Tan Dun Hero Overture", "Tan Dun Itzhak Perlman For the World Hero"], ["hero", "for the world", "tan dun"], ["crouching tiger"],
+                "4/4 拍 · 悲壮独奏小提琴 × 战国古琴与日本太鼓群",
+                "小提琴大师伊扎克·帕尔曼在悲怆激昂的高音区拉出极具撕裂感与宿命感的东方主题，底层则是浑厚的战国古琴拨弦与震天动地的日本太鼓群合奏。",
+                "2002年 · 张艺谋执导、蝉联北美两周票房冠军的东方色彩美学巨制",
+                "谭盾继《卧虎藏龙》夺奥后再创高峰，邀请世界小提琴大师帕尔曼与日本鼓童乐团跨界演绎秦风古韵。",
+                "《Hero》通过古琴的虚实泛音、太鼓的刚猛千钧以及帕尔曼凄美决绝的小提琴独奏，将“风萧萧兮易水寒”的东方刺客美学转化为全球听众都能震撼共鸣的交响语言。"],
+
+            [309, "auteur", "symphonic", "《惊魂记》", "Psycho", "Prelude / The Murder", "伯纳德·赫尔曼 (Bernard Herrmann)", 1960, "🎬 希区柯克悬疑影史丰碑 · 纯弦乐惊悚范式",
+                ["Bernard Herrmann Psycho Prelude", "Bernard Herrmann Psycho Suite"], ["psycho"], ["vertigo", "taxi driver"],
+                "2/4 拍 · 纯弦乐编制尖锐不协和切分",
+                "完全剔除了温暖的木管与铜管乐器，仅由纯弦乐团加装弱音器演奏：高速焦虑的八分音符切分和弦如同神经质的心跳，或以高音区刺耳的小二度跳弓疯狂劈砍。",
+                "1960年 · 悬疑大师希区柯克执导的黑白心理惊悚经典",
+                "希区柯克的御用配乐巨匠，他为了配合黑白胶片的冷峻光影，决定整部电影只使用纯粹的“黑白音色”——纯弦乐编制（伯纳德·赫尔曼）。",
+                "赫尔曼在《Psycho》中大量使用了被称为“希区柯克和弦”的小大七和弦（Bbm(maj7)）。这种极度尖锐且无法解决的和声张力，开创了现代心理惊悚片的声学语言。"],
+
+            [310, "auteur", "symphonic", "《美国往事》", "Once Upon a Time in America", "Deborah's Theme / Cockeye's Song", "埃尼奥·莫里康内 (Ennio Morricone)", 1984, "🏆 英国电影学院奖最佳配乐 · 排箫与弦乐绝唱",
+                ["Ennio Morricone Deborah's Theme", "Ennio Morricone Once Upon a Time in America"], ["deborah's theme", "once upon a time in america", "cockeye"], ["cinema paradiso", "ecstasy of gold"],
+                "4/4 拍 · 孤独罗马尼亚排箫 (Pan Flute) 与沧桑弦乐慢板",
+                "孤独空灵的罗马尼亚排箫吹出带有呼吸气声的沧桑动机，或者由弦乐群在 E 大调上以极度缓慢、庄严的步调层层推起，女高音无词吟唱如旧日幻影般浮现。",
+                "1984年 · 莱昂内“往事三部曲”收官之作、影史最伟大的黑帮史诗之一",
+                "莫里康内在剧本尚未开拍前就已写好全部配乐，导演在片场直接外放这些音乐让罗伯特·德尼罗等演员进入跨越半个世纪的沧桑情绪。",
+                "《Deborah's Theme》以巴赫式的庄严半音阶低音下行为骨架，上方弦乐旋律在漫长的挂留音中缓缓舒展，将一生错过的悔恨与时光洪流凝练成永恒的绝响。"],
+
+            [311, "auteur", "minimal", "《西西里的美丽传说》", "Malèna", "Malèna (Main Theme)", "埃尼奥·莫里康内 (Ennio Morricone)", 2000, "🏆 奥斯卡最佳原创配乐提名 · 地中海吉他与弦乐",
+                ["Ennio Morricone Malena", "Malena Original Soundtrack Morricone"], ["malena", "malèna"], ["cinema paradiso", "1900"],
+                "4/4 拍 · 古典木吉他、曼陀铃与温婉中提琴弦乐",
+                "温暖而略带忧伤的古典木吉他与西西里民间拨弦乐器轻柔引入，独奏中提琴与小提琴群奏出蜿蜒优雅、风情万种却暗藏叹息的意大利浪漫主义旋律。",
+                "2000年 · 托纳多雷执导、获得奥斯卡最佳摄影与最佳原创配乐提名的意大利经典",
+                "托纳多雷与莫里康内黄金组合的又一结晶，用浓郁的地中海阳光音色反衬美丽与流言的悲剧（埃尼奥·莫里康内）。",
+                "主旋律围绕着柔和的六度音程与半音阶回音展开，木吉他质朴的尼龙弦颗粒感与交响弦乐的丝滑连奏交织，流露出少年视角下懵懂而深沉的眷恋。"],
+
+            [312, "auteur", "minimal", "《断背山》", "Brokeback Mountain", "Brokeback Mountain 1 / The Wings", "古斯塔沃·桑多拉拉 (Gustavo Santaolalla)", 2005, "🏆 奥斯卡最佳原创配乐 & 威尼斯金狮奖",
+                ["Gustavo Santaolalla Brokeback Mountain", "Gustavo Santaolalla The Wings Brokeback"], ["brokeback mountain", "the wings"], ["babel", "last of us"],
+                "4/4 拍 · 极简钢弦原声吉他泛音与滑棒吉他",
+                "空旷静谧的录音空间里，一把钢弦木吉他以极其稀疏、缓慢的单音拨弦与清脆的自然泛音（Harmonics）轻轻叩击，夏威夷滑棒吉他（Pedal Steel）在远处拉出怀俄明州旷野般的悠长延音。",
+                "2005年 · 李安执导、夺得威尼斯金狮奖与奥斯卡最佳导演及最佳原创配乐的影史经典",
+                "阿根廷传奇音乐人，他不会读写传统五线谱，却凭极致的吉他音色留白连续两年蝉联奥斯卡最佳原创配乐小金人（古斯塔沃·桑多拉拉）。",
+                "全曲体现了“少即是多”的极致留白美学：音符与音符之间留有漫长的呼吸停顿，手指摩擦吉他琴弦的细微物理声响被清晰保留，传递出深埋心底的孤寂。"],
+
+            [313, "auteur", "minimal", "《巴别塔》", "Babel", "Bibo no Aozora / Deportation / Iguazu", "古斯塔沃·桑多拉拉 & 坂本龙一", 2006, "🏆 奥斯卡最佳原创配乐 & 戛纳最佳导演",
+                ["Gustavo Santaolalla Deportation Iguazu", "Ryuichi Sakamoto Bibo no Aozora Babel"], ["babel", "bibo no aozora", "iguazu", "deportation"], ["brokeback", "merry christmas"],
+                "4/4 拍 · 南美查兰戈小吉他 (Charango) 与室内钢琴大提琴",
+                "南美安第斯山脉特有的十弦小吉他“查兰戈（Charango）”弹出质朴苍凉的重复拨弦动机，或由大提琴与钢琴在寂静中奏出跨越语言隔阂的悲悯三重奏。",
+                "2006年 · 伊纳里图执导、斩获奥斯卡最佳原创配乐的多线叙事作者电影代表作",
+                "桑多拉拉凭此片实现了奥斯卡最佳配乐两连庄，片尾更完美融合了坂本龙一催人泪下的室内乐名曲《美貌的青空》。",
+                "原声以极具泥土气息的民族拨弦乐器与现代极简室内乐对话，用最质朴的空弦共鸣消解了人类不同文明间的沟通壁垒。"],
+
+            [314, "auteur", "symphonic", "《细细的红线》", "The Thin Red Line", "Journey to the Line", "汉斯·季默 (Hans Zimmer)", 1998, "🏆 柏林金熊奖 & 奥斯卡最佳配乐提名",
+                ["Hans Zimmer Journey to the Line", "The Thin Red Line Journey to the Line"], ["journey to the line", "thin red line"], ["interstellar", "dunkirk", "inception"],
+                "4/4 拍 · 钟表滴答固定音型与长达9分钟的圣咏弦乐渐强",
+                "从极弱的机械滴答脉冲与温润的木管四度和声引入，全编制弦乐群在四组庄严和弦的缓慢循环中不断叠加声部，历经数分钟推进至撕心裂肺的悲壮交响高潮。",
+                "1998年 · 泰伦斯·马力克蛰伏20年复出执导、夺得柏林金熊奖的哲学战争诗电影",
+                "这首曲目被整个好莱坞奉为“现代预告片与极简交响配乐的分水岭”，甚至启发了作曲家日后《盗梦空间》《星际穿越》的写法（汉斯·季默）。",
+                "《Journey to the Line》开创了“极简主义慢速圣咏长线条（Adagio Ostinato Build）”范式：没有花哨的铜管炫技，完全依靠大提琴与小提琴群漫长的弓法张力，奏出对自然与生死的悲悯。"],
+
+            [315, "auteur", "synth", "《发条橙》", "A Clockwork Orange", "Title Music from A Clockwork Orange", "温蒂·卡洛斯 (Wendy Carlos) 改编普赛尔", 1971, "🏆 奥斯卡最佳影片提名 · 巴洛克Moog合成器先驱",
+                ["Wendy Carlos Title Music from A Clockwork Orange", "Music for the Funeral of Queen Mary Wendy Carlos"], ["clockwork orange", "wendy carlos", "queen mary"], ["shining", "2001"],
+                "4/4 拍 · 17世纪巴洛克葬礼进行曲 × Moog 模块合成器",
+                "庄严阴冷的17世纪巴洛克慢速半音阶送葬进行曲，却并非由古典铜管演奏，而是通过早期 Moog 模拟模块化合成器发出带着电流怪诞感与金属光泽的电子音色。",
+                "1971年 · 库布里克执导的反乌托邦黑色寓言影史名作",
+                "电子音乐先驱温蒂·卡洛斯代表作，首次将庄重的古典巴洛克杰作彻底转化为怪诞冷酷的模拟合成器音色。",
+                "这段配乐改编自1695年亨利·普赛尔的《玛丽女王葬礼音乐》。将神圣肃穆的巴洛克四部和声放入扭曲的模拟电子振荡器中演奏，产生了极具讽刺感的声学撕裂。"],
+
+            [316, "auteur", "jazz", "《八部半》", "8½", "La Passerella di Otto e Mezzo", "尼诺·罗塔 (Nino Rota)", 1963, "🏆 奥斯卡最佳外语片 · 欧洲艺术电影马戏团进行曲",
+                ["Nino Rota La Passerella di Otto e Mezzo", "Nino Rota 8 1/2 Suite"], ["otto e mezzo", "8 1/2", "passerella", "nino rota"], ["godfather"],
+                "2/4 拍 · 怪诞欢快的意大利街头铜管与短笛马戏团进行曲",
+                "清脆戏谑的短笛、单簧管与小号踩着轻快蹦跳的二拍子节奏，吹奏出既像马戏团游行又像梦境狂欢的半音阶回旋曲，手风琴与大号在底部发出幽默的切分吐音。",
+                "1963年 · 费德里科·费里尼执导、斩获奥斯卡最佳外语片的现代主义艺术电影圣经",
+                "费里尼与尼诺·罗塔这对影史传奇搭档的巅峰结晶，这段旋律甚至成为了罗塔本人葬礼上演奏的送别曲（尼诺·罗塔）。",
+                "罗塔将意大利街头集市铜管乐队（Banda）的世俗欢腾与高雅的古典回旋曲结合，明快的进行曲节奏中透着一丝梦幻易碎的忧伤，成为艺术电影的永恒听觉标志。"],
+
+            [317, "auteur", "minimal", "《寄生虫》", "Parasite", "The Belt of Faith (믿음의 벨트)", "郑在日 (Jung Jae-il)", 2019, "🏆 奥斯卡最佳影片 & 戛纳金棕榈双料传奇",
+                ["Jung Jae-il The Belt of Faith Parasite", "Parasite Soundtrack Jung Jae-il"], ["belt of faith", "parasite", "jung jae-il"], ["squid game", "oldboy"],
+                "3/4 或 4/4 拍 · 巴洛克羽管键琴风格钢琴与紧迫室内弦乐",
+                "采用极具18世纪欧洲巴洛克亨德尔歌剧风格的庄严弦乐与拨弦羽管键琴/钢琴切分律动，在优雅古典的室内乐外衣下，由慢至快地堆叠出荒诞而惊心动魄的悬疑推进感。",
+                "2019年 · 奉俊昊执导、影史首部同时包揽戛纳金棕榈奖与奥斯卡最佳影片的亚洲电影",
+                "韩国全才音乐人，后来亦为《鱿鱼游戏》配乐，擅长用优雅古典的巴洛克室内乐反衬现代社会的残酷荒诞（郑在日）。",
+                "《The Belt of Faith》长达数分钟一气呵成，利用巴洛克通奏低音（Basso Continuo）式的重复和弦行进，将一场日常家庭阴谋烘托出古典宫廷歌剧般的戏剧张力。"],
+
+            // ================= 维度 4：东方幻想与动画殿堂 (Eastern & Animation - 17首) =================
+            [401, "eastern", "minimal", "《千与千寻》", "Spirited Away", "あの夏へ (One Summer's Day)", "久石让 (Joe Hisaishi)", 2001, "🏆 奥斯卡最佳动画长片 & 柏林金熊奖",
+                ["Joe Hisaishi One Summer's Day", "久石譲 あの夏へ"], ["one summer's day", "spirited away", "あの夏へ"], ["kikujiro", "totoro", "mononoke", "howl"],
+                "4/4 拍 · 自由速度四度叠置和声钢琴",
+                "开篇是两记极富空气感的四度叠置钢琴挂留和弦，高音区单音旋律在静谧的留白中缓缓下行，随后温暖的大提琴声部与印象派色彩的竖琴泛音悄然加入。",
+                "2001年 · 宫崎骏执导、唯一一部同时夺得奥斯卡最佳动画长片与柏林金熊奖的东方奇幻杰作",
+                "日本配乐宗师代表作，极具辨识度的“四度叠置和声”兼具德彪西印象派色彩与东方水墨留白美学（久石让）。",
+                "《あの夏へ》开篇以 F-B-E-A 的四度叠置和弦切入。这种和声既不纯粹欢快也不沉重悲伤，自带一种悬浮、透明的怀旧水彩质感。"],
+
+            [402, "eastern", "symphonic", "《幽灵公主》", "Princess Mononoke", "アシタカせっ記 (The Legend of Ashitaka)", "久石让 (Joe Hisaishi)", 1997, "🏆 日本电影学院奖最佳影片 · 东方交响史诗",
+                ["Joe Hisaishi The Legend of Ashitaka", "久石譲 アシタカせっ記"], ["ashitaka", "mononoke", "アシタカ"], ["spirited away", "totoro", "howl"],
+                "4/4 拍 · 宏大交响管弦乐与雅乐五度音程",
+                "低音弦乐与木管在空旷的五度音程上肃穆引入，随后全编制交响弦乐群与圆号齐奏出辽阔苍茫的日本雅乐色彩主题，兼具远古森林的厚重与悲悯。",
+                "1997年 · 刷新当时日本影史票房纪录的吉卜力史诗奇幻动画里程碑",
+                "这是久石让从早期合成器风格彻底转向气势恢宏的浪漫主义全编制交响诗的巅峰之作（东京爱乐乐团录制）。",
+                "《アシタカせっ記》在和声上大量使用了无三音的纯五度空弦音程与日本传统调式，避开了西方古典音乐甜腻的半音解决，呈现出跨越时代的苍茫大地质感。"],
+
+            [403, "eastern", "minimal", "《龙猫》", "My Neighbor Totoro", "風のとおり道 (Path of the Wind)", "久石让 (Joe Hisaishi)", 1988, "🏆 日本旬报年度十佳第一 · 东方田园极简经典",
+                ["Joe Hisaishi Path of the Wind Totoro", "久石譲 風のとおり道"], ["path of the wind", "totoro", "風のとおり道"], ["spirited away", "mononoke"],
+                "4/4 拍 · 极简五声音阶合成器钟琴与室内弦乐",
+                "晶莹剔透的电子钟琴与木管在 C 小调五声音阶上奏出极度克制、循环往复的四小节固定旋律动机，随后钢琴与温暖宽广的弦乐群如夏夜微风拂过稻田般层层漾开。",
+                "1988年 · 宫崎骏执导、成为吉卜力工作室文化图腾的童话动画经典",
+                "完美体现了作曲家早年作为先锋极简主义音乐家的底蕴：用最简单的五声动机重复变奏出无穷诗意（久石让）。",
+                "《風のとおり道》全曲几乎只围绕着一个五声音阶短句进行配器递增变奏（帕萨卡利亚手法），从最初的清冷空灵一路推向饱满温暖的交响高潮。"],
+
+            [404, "eastern", "auteur", "《哈尔的移动城堡》", "Howl's Moving Castle", "人生のメリーゴーランド (Merry-Go-Round of Life)", "久石让 (Joe Hisaishi)", 2004, "🏆 威尼斯电影节杰出技术大奖 & 奥斯卡提名",
+                ["Joe Hisaishi Merry-Go-Round of Life", "久石譲 人生のメリーゴーランド"], ["merry-go-round", "howl", "メリーゴーランド"], ["spirited away", "totoro"],
+                "3/4 拍 · 欧洲古典手风琴、钢琴与华丽交响圆舞曲",
+                "略带神秘忧郁的钢琴独奏自由引入后，手风琴与拨弦低音突然踩响优雅迷人的 3/4 拍维也纳式慢速华尔兹，紧接着全编制小提琴群与铜管旋转着将旋律推向绚烂辉煌的舞会高潮。",
+                "2004年 · 宫崎骏执导、夺得威尼斯电影节金奥赛拉奖与日本电影学院奖最佳配乐的奇幻名作",
+                "久石让在这首曲子中展现了对肖斯塔科维奇式东欧圆舞曲与巴黎街头手风琴美学的精妙融合。",
+                "全曲建立在 G 小调三拍子圆舞曲骨架上，通过不断加速的节拍与声部叠加，将一段略带怀旧感伤的小调动机，旋转升华为充满魔幻机械生命力的华丽交响曲。"],
+
+            [405, "eastern", "symphonic", "《天空之城》", "Castle in the Sky", "君をのせて (Carrying You / Innocent)", "久石让 (Joe Hisaishi)", 1986, "🎬 吉卜力工作室开山之作 · 全球传唱度最高旋律",
+                ["Joe Hisaishi Carrying You Castle in the Sky", "Joe Hisaishi Innocent Laputa"], ["carrying you", "innocent", "laputa", "castle in the sky", "君をのせて"], ["totoro", "spirited away"],
+                "4/4 拍 · 清澈小号/木管独奏与自然小调黄金和弦进行",
+                "在轻柔的木管或八音盒分解和弦铺垫下，小号（或小提琴）吹奏出那段家喻户晓、纯净而略带淡淡乡愁的自然小调级进旋律，副歌处高音八度跃升，豁然开朗。",
+                "1986年 · 吉卜力工作室正式成立后的首部院线动画长片",
+                "这段旋律因结构极其完美（经典的卡农式小调和弦下行），成为了华语与亚洲地区最广为人知的电影主题曲（久石让）。",
+                "主旋律采用最纯粹的自然小调（Aeolian Mode）写成，左手伴奏遵循 i - VII - VI - V 巴洛克黄金低音下行，兼具古典学院派的工整与少年仰望苍穹的纯净。"],
+
+            [406, "eastern", "minimal", "《菊次郎的夏天》", "Kikujiro", "Summer", "久石让 (Joe Hisaishi)", 1999, "🏆 戛纳金棕榈提名 & 日本电影学院奖最佳配乐",
+                ["Joe Hisaishi Summer Kikujiro", "久石譲 Summer"], ["summer", "kikujiro"], ["one summer's day", "spirited away"],
+                "4/4 拍 · D大调清脆跳音钢琴与弦乐拨弦",
+                "钢琴左手保持稳健轻快的八分音符跳跃低音，右手在 D 大调五声音阶上弹奏出清脆明亮、如同阳光在溪面上跳跃的十六分音符动机，小提琴群以俏皮的拨弦附和。",
+                "1999年 · 北野武执导、入围戛纳电影节主竞赛单元的温情公路喜剧经典",
+                "北野武与宫崎骏这两位日本影坛巨匠的共同御用作曲家，凭此片再夺日本电影学院奖最佳配乐（久石让）。",
+                "《Summer》建立在极具律动感的 D - G - A - D 基础大调和弦进行上，主旋律完全由五声音阶构成，通过断奏钢琴与切分重音，传递出纯粹透明的夏日童趣。"],
+
+            [407, "eastern", "synth", "《攻壳机动队》", "Ghost in the Shell", "M01 謡 I - Making of Cyborg", "川井宪次 (Kenji Kawai)", 1995, "🎬 赛博朋克动画圣经 · 古日语民谣合唱",
+                ["Kenji Kawai Making of Cyborg", "Kenji Kawai Ghost in the Shell"], ["cyborg", "ghost in the shell", "utai", "謡"], ["akira", "paprika"],
+                "缓板 · 日本古语民谣 × 保加利亚唱法与太鼓",
+                "深沉的日本太鼓与低音合成器脉冲缓慢敲击，女声合唱团采用极具穿透力的保加利亚民歌胸腔共鸣唱法，按五声音阶与二度不协和音程层层交织，回荡在冷冽混响中。",
+                "1995年 · 押井守执导、直接启发《黑客帝国》的赛博朋克剧场版动画丰碑",
+                "日本配乐巨匠，擅长将日本古语祝词、能剧太鼓与冰冷的电子合成器结合，创造出充满神性仪式感的未来音景（川井宪次）。",
+                "川井宪次创造性地用保加利亚传统无颤音女声合唱来演绎古日语婚礼祝词。合唱声部频繁出现大二度与小二度的近距离音程碰撞，构建出民俗与科技交融的独特美学。"],
+
+            [408, "eastern", "synth", "《阿基拉》", "Akira", "Kaneda (金田)", "山城祥二 & 艺能山城组", 1988, "🎬 世界赛博朋克动画巅峰 · 印尼甘美兰打击乐",
+                ["Geinoh Yamashirogumi Kaneda", "Akira Symphonic Suite Kaneda"], ["kaneda", "akira"], ["ghost in the shell"],
+                "高速律动 · 印尼巴厘岛甘美兰竹琴 × 原始呼麦口号",
+                "急促清脆的印尼巴厘岛竹制甘美兰（Jegog）打击乐器高速敲击出催眠般的复节奏，伴随粗犷的男声喉音呼喊与极具冲击力的重低音鼓点。",
+                "1988年 · 大友克洋执导、耗资10亿日元纯手绘打造的赛博朋克动画神作",
+                "由脑科学家兼音乐家山城祥二创立的前卫音乐公社操刀，将东南亚甘美兰竹制敲击乐、日本祭典太鼓与电子合成器熔于一炉（艺能山城组）。",
+                "《Kaneda》颠覆了科幻配乐必须用电子琴的定式，采用巴厘岛传统大竹琴高速互锁的切分音型（Kotekan），以最原始的部落敲击乐爆发力赋予未来都市无与伦比的生命能量。"],
+
+            [409, "eastern", "synth", "《红辣椒》", "Paprika", "Parade (パレード) / The Girl in Byakkoya", "平泽进 (Susumu Hirasawa)", 2006, "🏆 威尼斯电影节主竞赛入围 · 今敏超现实狂欢电音",
+                ["Susumu Hirasawa Parade Paprika", "Susumu Hirasawa Byakkoya"], ["paprika", "parade", "byakkoya", "パレード"], ["akira", "ghost in the shell"],
+                "4/4 拍 · 狂欢电子采样进行曲 × 约德尔高音人声",
+                "怪诞华丽的电子合成器铜管进行曲、密集的采样打击乐与层层叠叠的电子人声合唱交织，男高音在真假声之间急速切换，营造出既狂欢绚烂又光怪陆离的超现实声场。",
+                "2006年 · 日本动画大师今敏生前最后一部院线长片、超现实心理科幻杰作",
+                "被誉为“日本电子乐师匠”，世界上最早使用 Vocaloid 虚拟人声进行电影配乐的先驱，是今敏的灵魂音乐搭档（平泽进）。",
+                "平泽进在《Paprika》中大量运用失调的铜管采样、复调合成器以及真假声跳跃的约德尔唱腔。大调的明快进行曲节奏下暗流涌动着不协和声部，极具迷幻张力。"],
+
+            [410, "eastern", "minimal", "《你的名字。》", "Your Name.", "スパークル (Sparkle) / かたわれ時 (Katawaredoki)", "RADWIMPS (野田洋次郎)", 2016, "🏆 日本电影学院奖最佳配乐 · 现象级票房冠军",
+                ["RADWIMPS Sparkle Your Name", "RADWIMPS Katawaredoki Your Name"], ["sparkle", "katawaredoki", "your name", "スパークル", "かたわれ時"], ["weathering with you", "suzume"],
+                "4/4 拍 · 晶莹高音钢琴持续琶音 × 抒情弦乐与数学摇滚律动",
+                "高音钢琴如星尘坠落般弹奏出绵延不断的十六分音符晶莹琶音循环，或者由清澈的独奏钢琴与大提琴在黄昏般的温暖混响中缓缓对话，逐步推向绚烂的管弦摇滚高潮。",
+                "2016年 · 新海诚执导、创下全球超3.8亿美元票房并夺得日本学院奖最佳配乐的现象级动画",
+                "由日本摇滚乐团 RADWIMPS 耗时一年半与导演深度磨合，将日式数学摇滚（Math Rock）的清澈钢琴琶音与管弦乐结合（野田洋次郎）。",
+                "曲目以高音区恒定闪烁的钢琴分解和弦作为时间流逝的听觉隐喻，干净通透的大调七和弦进行赋予了画面极强的青春澄澈感。"],
+
+            [411, "eastern", "symphonic", "《新世纪福音战士剧场版》", "Evangelion", "Decisive Battle (決戦) / Thanatos", "鹭巢诗郎 (Shiro Sagisu)", 1997, "🎬 日本动画史里程碑 · 定音鼓与紧迫铜管交响",
+                ["Shiro Sagisu Decisive Battle Evangelion", "Shiro Sagisu Evangelion"], ["decisive battle", "evangelion", "thanatos", "決戦"], ["shin godzilla", "bleach"],
+                "4/4 拍 · 雷霆定音鼓重击、军鼓切分与冷峻铜管进行曲",
+                "极具辨识度的重型定音鼓（Timpani）与低音大鼓踩着紧迫的切分节奏连续轰击，紧接着小号与长号声部吹响干脆利落、带有军事作战紧张感的短促铜管动机。",
+                "1990年代末 · 庵野秀明执导、引发社会文化现象的日本机甲心理科幻动画巨作",
+                "日本交响配乐巨匠，在伦敦 Abbey Road 录音室与英国皇家爱乐乐团合作，将好莱坞007式的铜管打击乐引入日本动画（鹭巢诗郎）。",
+                "《Decisive Battle》完全以定音鼓和军鼓的高密度复节奏切分作为第一驱动力，铜管声部省去了冗长的抒情线条，用短促有力的四度与五度跳进直接拉满倒计时般的作战张力。"],
+
+            [412, "eastern", "synth", "《风之谷》", "Nausicaä of the Valley of the Wind", "風の伝説 (Legend of the Wind) / 鳥の人", "久石让 (Joe Hisaishi)", 1984, "🎬 宫崎骏与久石让传奇搭档起点",
+                ["Joe Hisaishi Nausicaa of the Valley of the Wind", "久石譲 風の伝説 ナウシカ"], ["nausicaa", "nausicaä", "風の伝説", "ナウシカ"], ["laputa", "mononoke"],
+                "4/4 拍 · 80年代复古模拟合成器 × 恢弘管弦交响",
+                "兼具巴洛克宫廷哀歌般的庄严小调弦乐，与80年代标志性的 Fairlight CMI 数字采样合成器脉冲及童声哼唱，在荒芜与希望之间构筑出独特的未来寓言音景。",
+                "1984年 · 促成吉卜力工作室诞生的环保科幻动画经典，也是宫崎骏与久石让合作的开端",
+                "当时年仅33岁的作曲家在这部作品中大胆将前卫电子合成器与浪漫派交响乐拼贴，一举成名（久石让）。",
+                "《风之谷》原声记录了80年代电子乐与管弦乐交汇的历史瞬间：小调的古典悲剧旋律赋予了末日世界史诗厚度，而闪烁的合成器琶音则指向未来的微光。"],
+
+            [413, "eastern", "jazz", "《红猪》", "Porco Rosso", "帰らざる日々 (Bygone Days)", "久石让 (Joe Hisaishi)", 1992, "🏆 安锡国际动画节水晶大奖 · 亚得里亚海浪漫爵士钢琴",
+                ["Joe Hisaishi Bygone Days Porco Rosso", "久石譲 帰らざる日々"], ["bygone days", "porco rosso", "帰らざる日々"], ["howl", "kikujiro"],
+                "4/4 拍 · 慵懒浪漫的欧洲沙龙爵士独奏钢琴与萨克斯风",
+                "独奏三角钢琴以微醺慵懒的摇摆节奏（Swing Feel）在温暖的七和弦与九和弦之间漫步，随后醇厚柔和的萨克斯风或小提琴滑入，充满1920年代地中海午后咖啡馆的浪漫情调。",
+                "1992年 · 宫崎骏最具成人浪漫色彩的飞行员动画电影，斩获法国安锡动画节最高奖",
+                "作曲家罕见地放下宏大交响，改用纯正的欧陆沙龙爵士（Salon Jazz）与探戈色彩来刻画中年飞行员的潇洒与孤寂（久石让）。",
+                "《帰らざる日々》运用了大量爵士二五一（ii-V-I）和弦进行与布鲁斯经过音，钢琴右手随性自由的切分装饰音，将亚得里亚海的碧波与往昔岁月的叹息融为一炉。"],
+
+            [414, "eastern", "minimal", "《花火》", "Hana-Bi", "Hana-Bi (Main Theme)", "久石让 (Joe Hisaishi)", 1997, "🏆 威尼斯电影节金狮奖 & 日本学院奖最佳配乐",
+                ["Joe Hisaishi Hana-Bi", "久石譲 HANA-BI"], ["hana-bi", "hanabi"], ["kikujiro", "spirited away"],
+                "4/4 拍 · 冷冽克制的极简钢琴、大提琴与暴力美学留白",
+                "极度克制而凄美的独奏钢琴与大提琴在冰冷的小调上缓慢吟唱，随后突然切入密集沉重的低音弦乐同音反复敲击，在极致的温柔宁静与宿命的骤然爆发之间反复横跳。",
+                "1997年 · 北野武自编自导自演、斩获威尼斯国际电影节最高荣誉金狮奖的犯罪文艺杰作",
+                "这是久石让与北野武合作的巅峰之作，用极简主义的冰冷重复与抒情弦乐映衬北野武式的“暴力与静谧”。",
+                "乐曲采用鲜明的二元对立结构：A段是极具压迫感的弦乐固定音型脉冲，B段则瞬间坍缩为一架孤寂透明的高音钢琴，在听觉上完成了如同海浪拍岸般的宿命感。"],
+
+            [415, "eastern", "jazz", "《寻梦环游记》", "Coco", "Remember Me / La Llorona", "迈克·吉亚奇诺 & 洛佩兹夫妇", 2017, "🏆 奥斯卡最佳动画长片 & 最佳原创歌曲",
+                ["Coco Remember Me Soundtrack", "Michael Giacchino Coco"], ["remember me", "coco", "llorona"], ["up", "soul"],
+                "4/4 或 3/4 拍 · 墨西哥玛利亚奇尼龙弦吉他 (Mariachi) 与温情小号",
+                "醇厚温暖的墨西哥传统尼龙弦木吉他与维胡埃拉琴（Vihuela）弹出充满异域阳光的华尔兹分解和弦，伴随辉煌的小号重奏或轻柔如摇篮曲般的箱琴指弹。",
+                "2017年 · 皮克斯出品、包揽奥斯卡最佳动画长片与最佳原创歌曲的催泪奇幻经典",
+                "由《冰雪奇缘》词曲搭档洛佩兹夫妇与奥斯卡配乐得主迈克·吉亚奇诺联手，深入墨西哥瓦哈卡州采集地道民间乐器录制。",
+                "主旋律在一个精妙的下行四度与大六度跳进中融入了墨西哥传统 Bolero Ranchero（牧场波莱罗）舞曲色彩，既能化作热闹的街头狂欢，也能收束为催人泪下的指弹耳语。"],
+
+            [416, "eastern", "jazz", "《飞屋环游记》", "Up", "Married Life", "迈克·吉亚奇诺 (Michael Giacchino)", 2009, "🏆 奥斯卡最佳原创配乐 & 格莱美奖",
+                ["Michael Giacchino Married Life Up", "Up Married Life Soundtrack"], ["married life"], ["ratatouille", "coco", "incredibles"],
+                "3/4 拍 · 复古八音盒钢琴、弱音小号与一生时光华尔兹",
+                "轻快俏皮的独奏钢琴、单簧管与加装弱音器的复古爵士小号踩着优雅的 3/4 拍三拍子华尔兹翩翩起舞，随后节奏逐渐放缓，最终化作高音区如八音盒般脆弱温柔的钢琴单音。",
+                "2009年 · 皮克斯动画经典，凭开篇无台词4分钟蒙太奇配乐横扫奥斯卡、金球奖与格莱美最佳配乐",
+                "好莱坞当代配乐中坚力量，仅用同一个四音符华尔兹主题的速度与配器变化，便讲完了一对伴侣从青丝到白发的完整一生（迈克·吉亚奇诺）。",
+                "《Married Life》是电影配乐叙事的教科书：前半段采用欢快的 1930 年代新奥尔良爵士室内乐配器，后半段同样四个音符被拉长三倍速度，仅由孤独的钢琴弹出，令人瞬间破防。"],
+
+            [417, "eastern", "jazz", "《心灵奇旅》", "Soul", "Born to Play / Epiphany", "特伦特·雷诺、阿提喀斯·罗斯 & 乔·巴蒂斯特", 2020, "🏆 奥斯卡最佳原创配乐 & 最佳动画长片",
+                ["Jon Batiste Born to Play Soul", "Trent Reznor Epiphany Soul"], ["born to Play", "epiphany", "soul"], ["social network", "whiplash"],
+                "4/4 拍 · 纽约街头灵动爵士钢琴即兴 × 空灵宇宙合成器",
+                "温暖灵动的纽约现代爵士三角钢琴在琴键上行云流水般高速即兴跳跃，或者由极度澄澈空灵的电子合成器泛音与大提琴长音交织出漂浮于云端般的哲思声场。",
+                "2020年 · 皮克斯出品、夺得奥斯卡最佳动画长片与最佳原创配乐的生命哲思佳作",
+                "开创性地采用双轨制配乐：现实纽约的爵士钢琴由格莱美年度专辑得主乔·巴蒂斯特亲自弹奏，灵魂世界的空灵电子则由工业大师雷诺与罗斯操刀。",
+                "这部原声将“充满烟火气的即兴爵士钢琴”与“超脱尘世的极简环境电子（Ambient）”并置，在最后的高潮《Epiphany》中两种截然不同的声学维度完美合流。"],
+
+            // ================= 维度 5：爵士律动与都市流行 (Jazz & Groove - 16首) =================
+            [501, "jazz", "minimal", "《爱乐之城》", "La La Land", "Mia & Sebastian's Theme / Another Day of Sun", "贾斯汀·赫维茨 (Justin Hurwitz)", 2016, "🏆 奥斯卡最佳原创配乐 & 金球奖7项全胜",
+                ["Justin Hurwitz Mia & Sebastian's Theme", "La La Land Mia Sebastian Theme"], ["mia", "sebastian", "la la land"], ["whiplash", "babylon"],
+                "慢速抒情转爵士即兴 · 独奏三角钢琴",
+                "温暖而略带忧伤的独奏三角钢琴在升C小调上缓缓吟唱，左手伴奏如流水般细腻，尾段突然打破严谨的节拍，迸发出一连串充满即兴色彩的高速爵士钢琴华彩跑动。",
+                "2016年 · 达米恩·查泽雷执导、包揽奥斯卡最佳原创配乐与最佳原创歌曲的现代歌舞爱情经典",
+                "好莱坞新生代作曲家，擅长将黄金时代百老汇爵士乐与古典浪漫主义钢琴旋律完美结合（贾斯汀·赫维茨）。",
+                "这段钢琴主题采用经典的 A-B-A 曲式，主旋律围绕级进音阶与小六度跳进展开，自带一种爵士蓝调忧郁色彩。后半段突如其来的自由速度琶音华彩展现了纯粹的爵士生命力。"],
+
+            [502, "jazz", "auteur", "《爆裂鼓手》", "Whiplash", "Caravan / Whiplash", "汉克·列维 / 艾灵顿公爵 & 贾斯汀·赫维茨", 2014, "🏆 斩获3项奥斯卡大奖 · 极限爵士大乐队与鼓独奏",
+                ["Whiplash Caravan John Wasson", "Hank Levy Whiplash Soundtrack"], ["whiplash", "caravan"], ["la la land", "birdman"],
+                "高速律动或 7/4 奇数拍 · 极限爵士鼓独奏与大乐队铜管",
+                "极具侵略性的爵士架子鼓军鼓滚奏与镲片切分高速推进，紧接着长号、小号与萨克斯风声部以刀锋般整齐的切分重音或奇数节拍（7/4拍）强力合奏。",
+                "2014年 · 斩获奥斯卡最佳男配角、最佳剪辑与最佳音响效果的音乐心理博弈神作",
+                "原声核心包含艾灵顿公爵名曲《Caravan》的极限倍速大乐队版，以及已故奇数拍爵士大师汉克·列维的同名曲目。",
+                "无论是 7/4 拍（分成 3+4 律动）的《Whiplash》还是高速拉丁摇摆转换的《Caravan》，都对鼓手的手脚独立性与大乐队铜管声部的瞬态切分精度提出了魔鬼级考验。"],
+
+            [503, "jazz", "auteur", "《低俗小说》", "Pulp Fiction", "Misirlou", "迪克·戴尔 (Dick Dale)", 1994, "🏆 戛纳金棕榈奖 & 奥斯卡最佳原创剧本",
+                ["Dick Dale Misirlou Pulp Fiction", "Dick Dale His Del-Tones Misirlou"], ["misirlou", "dick dale"], ["kill bill"],
+                "4/4 拍 · 冲浪摇滚 (Surf Rock) 高速震音电吉他",
+                "挂满弹簧混响的 Fender 电吉他以惊人的每秒十六次高速交替拨弦（Tremolo Picking），在充满中东异域色彩的双谐音阶上狂飙突进，小号与狂野鼓点随之炸裂。",
+                "1994年 · 昆汀·塔伦蒂诺执导、斩获戛纳金棕榈奖的后现代非线性犯罪经典",
+                "昆汀摒弃了传统管弦乐配乐，选用“冲浪吉他之王”在1962年改编自东地中海民间舞曲的摇滚名作作为开篇主题（迪克·戴尔）。",
+                "《Misirlou》之所以听起来既狂野又充满神秘张力，是因为采用了罕见的拜占庭/阿拉伯双谐音阶（1-b2-3-4-5-b6-7），两个增二度音程配合极限震音拨弦瞬间点燃肾上腺素。"],
+
+            [504, "jazz", "eastern", "《星际牛仔》", "Cowboy Bebop", "Tank!", "菅野洋子 (Yoko Kanno) & Seatbelts", 1998, "🎬 硬波普大乐队爵士配乐巅峰神作",
+                ["Seatbelts Tank", "Yoko Kanno Tank Cowboy Bebop"], ["tank", "seatbelts", "cowboy bebop"], ["ghost in the shell"],
+                "4/4 拍 · 高速硬波普大乐队爵士 (Big Band Jazz)",
+                "狂野的立式低音提琴行走低音与邦戈手鼓高速切入，紧接着小号与长号铜管组以凌厉的切分节奏齐奏咆哮，尾段更有极具爆发力的次中音萨克斯风即兴独奏。",
+                "1998/2001年 · 渡边信一郎执导、融合黑色电影与爵士乐的太空赏金猎人动画经典",
+                "日本配乐奇才菅野洋子专门组建了一支名为 Seatbelts 的顶级爵士大乐队录制完成。",
+                "《Tank!》是一首教科书级别的硬波普结合拉丁爵士的大乐队作品。全曲建立在 C 小调布鲁斯音阶之上，精准的铜管乐团齐奏切分与狂放的萨克斯风即兴形成了极强的律动冲击力。"],
+
+            [505, "jazz", "symphonic", "《007：诺博士》", "Dr. No (James Bond)", "James Bond Theme", "蒙蒂·诺曼 & 约翰·巴里", 1962, "🎬 影史最具辨识度的特工大乐队主题",
+                ["Monty Norman James Bond Theme", "John Barry James Bond Theme"], ["james bond theme"], ["mission impossible", "pink panther"],
+                "4/4 拍 · 半音阶摇摆大乐队 × 复古冷战电吉他",
+                "低音弦乐与铜管踩着酷劲十足的半音阶摇摆步点（B-C-C#-C），一把音色清脆冷冽的复古空心电吉他弹出极具辨识度的冲浪风格分解和弦动机，随后爵士大乐队铜管群咆哮炸裂。",
+                "1962年 · 风靡全球超过60年的007特工谍战系列电影开山之作",
+                "由蒙蒂·诺曼谱写主题动机、奥斯卡五冠王约翰·巴里进行大乐队爵士编曲，并以著名的“007小大九和弦”收尾。",
+                "《James Bond Theme》融合了大乐队摇摆爵士与60年代冲浪电吉他音色。半音阶往复的伴奏音型制造出潜行追踪的悬疑感，而铜管齐奏则尽显西装革履的潇洒。"],
+
+            [506, "jazz", "synth", "《碟中谍》", "Mission: Impossible", "Theme from Mission: Impossible", "拉罗·西弗林 (Lalo Schifrin)", 1996, "🏆 格莱美最佳器乐作曲 · 5/4拍奇数律动传奇",
+                ["Lalo Schifrin Mission Impossible Theme", "Theme from Mission Impossible"], ["mission: impossible", "mission impossible"], ["james bond", "bourne"],
+                "5/4 拍 · 摩斯电码式奇数拍低音律动与咆哮铜管",
+                "低音贝斯、钢琴与邦戈手鼓踩着极具欺骗性与推进感的 5/4 拍奇数节拍（长-长-短-短），上方长笛与高亢的爵士铜管组吹出干脆凌厉的小调半音阶下行旋律。",
+                "1966/1996年 · 阿根廷爵士配乐大师创作、随汤姆·克鲁斯谍战动作系列响彻全球的经典主题",
+                "作曲家在5/4拍低音律动中偷偷藏了一个彩蛋：前两拍长音（Dash-Dash）与后两拍短音（Dot-Dot）正好对应摩斯电码里的字母“M.I.”（拉罗·西弗林）。",
+                "5/4 拍通常给人跛脚不稳的感觉，但西弗林通过将其拆分为 3/8 + 3/8 + 2/8 + 2/8 的拉丁爵士切分，让奇数拍不仅流畅无比，还自带一种永不停歇的特工潜行紧迫感。"],
+
+            [507, "jazz", "eastern", "《杀死比尔》", "Kill Bill: Vol. 1", "Battle Without Honor or Humanity", "布袋寅泰 (Tomoyasu Hotei)", 2003, "🎬 全球出场BGM之王 · 失真摇滚电吉他与铜管",
+                ["Tomoyasu Hotei Battle Without Honor or Humanity", "Kill Bill Battle Without Honor"], ["battle without honor", "hotei"], ["misirlou", "pulp fiction"],
+                "4/4 拍 · 沉稳霸气的电吉他推弦 Riff 与大乐队铜管重音",
+                "沉稳有力的放克摇滚鼓点与低音贝斯开道，合成器铜管吹出极具压迫感的断奏重音，紧接着一把音色犀利的电吉他以充满江湖匪气的推弦（String Bending）奏出霸气十足的五声音阶 Riff。",
+                "2003年 · 昆汀·塔伦蒂诺致敬东方武侠与日本极道电影的动作经典",
+                "日本传奇摇滚吉他手布袋寅泰代表作，经昆汀选用后成为全世界慢镜头出场最具气场的标志性音乐。",
+                "全曲建立在 E 小调布鲁斯五声音阶之上，极简而留白充足的鼓点切分，配合电吉他精准的蓝调微分音推弦，仅需三秒前奏便能营造出千军万马般的气场。"],
+
+            [508, "jazz", "auteur", "《粉红豹》", "The Pink Panther", "The Pink Panther Theme", "亨利·曼西尼 (Henry Mancini)", 1963, "🏆 格莱美三项大奖 & 奥斯卡最佳配乐提名",
+                ["Henry Mancini The Pink Panther Theme", "Pink Panther Theme Mancini"], ["pink panther"], ["moon river", "james bond"],
+                "4/4 拍 · 蹑手蹑脚的半音阶次中音萨克斯风独奏",
+                "三角铁与低音提琴拨弦踩着轻巧狡黠的摇摆步点，一把醇厚圆润的次中音萨克斯风（Plas Johnson 独奏）以大量半音阶滑音与附点切分，吹出仿佛踮着脚尖潜行的幽默旋律。",
+                "1963年 · 布莱克·爱德华兹执导的经典喜剧侦探电影",
+                "好莱坞爵士与流行配乐宗师，一生夺得4座奥斯卡与20座格莱美奖，将酷派爵士（Cool Jazz）优雅地引入主流银幕（亨利·曼西尼）。",
+                "曼西尼大量使用升四度向五度的半音阶倚音滑奏（Chromatic Grace Notes），配合立式贝斯的行走低音，在听觉上惟妙惟肖地画出了侦探与卡通豹蹑手蹑脚的幽默神态。"],
+
+            [509, "jazz", "auteur", "《出租车司机》", "Taxi Driver", "Theme from Taxi Driver", "伯纳德·赫尔曼 (Bernard Herrmann)", 1976, "🏆 戛纳金棕榈奖 & 奥斯卡最佳配乐提名",
+                ["Bernard Herrmann Taxi Driver Theme", "Taxi Driver Main Title Herrmann"], ["taxi driver"], ["psycho", "vertigo"],
+                "4/4 拍 · 午夜霓虹萨克斯风独奏 × 压抑铜管军鼓",
+                "低沉的军鼓与阴郁的铜管和弦如同城市底层的闷雷般轰鸣，紧接着一把充满沧桑与倦怠感的中音萨克斯风吹出迷离、浪漫却又孤独欲裂的午夜蓝调旋律。",
+                "1976年 · 马丁·斯科塞斯执导、夺得戛纳电影节最高荣誉金棕榈奖的新好莱坞经典",
+                "这是悬疑配乐泰斗伯纳德·赫尔曼生前的绝笔遗作——他在录制完本片配乐仅仅几个小时后便在睡梦中辞世。",
+                "曲目采用极致反差的双重结构：冷酷压抑的铜管重音象征着都市的暴戾与失眠，而温润性感的爵士萨克斯风则倾诉着主角内心深处无法排遣的孤独。"],
+
+            [510, "jazz", "symphonic", "《猫鼠游戏》", "Catch Me If You Can", "Catch Me If You Can (Main Title)", "约翰·威廉姆斯 (John Williams)", 2002, "🏆 奥斯卡最佳原创配乐提名 · 60年代酷派室内爵士",
+                ["John Williams Catch Me If You Can", "Catch Me If You Can Main Title Williams"], ["catch me if you can"], ["star wars", "jaws", "terminal"],
+                "4/4 拍 · 60年代酷派爵士中音萨克斯风、颤音琴与弹指律动",
+                "以清脆的响指声（Finger Snaps）、颤音琴（Vibraphone）与立式低音提琴拨弦轻巧引入，一把丝滑灵动的中音萨克斯风在半音阶上蜿蜒游走，如同优雅狡黠的猫鼠追逐。",
+                "2002年 · 斯皮尔伯格执导、莱昂纳多与汤姆·汉克斯主演的60年代高智商犯罪喜剧",
+                "早年曾以爵士钢琴家身份出道的约翰·威廉姆斯，在此片中回归60年代亨利·曼西尼式的轻快酷派爵士（Cool Jazz）风格。",
+                "不同于威廉姆斯常见的铜管大交响，本曲以极具室内爵士质感的萨克斯风与铁琴（Vibraphone）领衔，轻盈跳跃的切分音型将一场跨国骗局演绎成优雅的智力芭蕾。"],
+
+            [511, "jazz", "auteur", "《芝加哥》", "Chicago", "Overture / All That Jazz", "约翰·坎德 & 丹尼·艾夫曼", 2002, "🏆 奥斯卡最佳影片等6项金像奖 · 百老汇爵士巅峰",
+                ["Chicago Overture All That Jazz", "Catherine Zeta-Jones All That Jazz"], ["all that jazz", "chicago"], ["la la land", "cabaret"],
+                "4/4 拍 · 1920年代咆哮芝加哥热爵士铜管与百老汇歌舞",
+                "加装哇音弱音器（Wah-wah Mute）的复古小号与单簧管吹出风情万种的蓝调滑音，大军鼓与踩镲踩着性感的二四拍摇摆步点，铜管大乐队瞬间引爆1920年代爵士夜总会的奢华气场。",
+                "2002年 · 狂揽奥斯卡最佳影片等6项大奖、复兴好莱坞歌舞片类型的百老汇经典",
+                "由百老汇传奇词曲搭档坎德与埃布创作，完美复刻了1920年代禁酒令时期芝加哥热爵士（Hot Jazz）与歌舞杂耍的声学风貌。",
+                "《All That Jazz》以典型的二拍子查尔斯顿舞曲切分（Charleston Rhythm）与小号弱音器咆哮开篇，在懒散迷人的摇摆小节与爆发力十足的百老汇铜管齐奏之间自如切换。"],
+
+            [512, "jazz", "symphonic", "《雨中曲》", "Singin' in the Rain", "Singin' in the Rain", "纳西奥·赫布·布朗 & 亚瑟·弗里德", 1952, "🏆 AFI百年影史第一歌舞片 · 黄金年代管弦摇摆",
+                ["Gene Kelly Singin' in the Rain", "Singin' in the Rain Soundtrack"], ["singin' in the rain", "singing in the rain"], ["la la land", "wizard of oz"],
+                "4/4 拍 · 轻快木管拨弦、踢踏舞步律动与好莱坞黄金管弦",
+                "清脆欢快的木管与弦乐拨弦模仿雨滴落下的俏皮声响，随后温暖明朗的管弦乐大乐队伴随轻盈的摇摆节拍与清脆的踢踏舞步节奏，奏出乐观治愈的大调旋律。",
+                "1952年 · 被美国电影学会评为影史最伟大歌舞片第一名的好莱坞黄金时代不朽杰作",
+                "米高梅音乐部汇聚顶尖百老汇编曲家，将交响弦乐与大乐队爵士摇摆（Swing）无缝结合。",
+                "乐曲建立在阳光灿烂的 F 大调与降B大调上，短促跳跃的八分音符断奏与顺滑的弦乐连奏交替，每一个节拍都洋溢着好莱坞黄金年代最纯粹的快乐。"],
+
+            [513, "jazz", "minimal", "《毕业生》", "The Graduate", "The Sound of Silence / Mrs. Robinson", "西蒙与加芬克尔 (Simon & Garfunkel)", 1967, "🏆 奥斯卡最佳导演 & 格莱美年度唱片",
+                ["Simon Garfunkel The Sound of Silence", "Simon Garfunkel Mrs. Robinson"], ["sound of silence", "mrs. robinson", "simon"], ["midnight cowboy"],
+                "4/4 拍 · 双人清澈民谣和声吟唱与空灵原声木吉他",
+                "一把安静清冷的原声木吉他弹出干净的分解和弦，两个极具辨识度的男声以严丝合缝的三度与六度和声（Close Harmony）轻声吟唱，电吉他与轻鼓点随后悄然托底。",
+                "1967年 · 迈克·尼科尔斯执导、开创用独立流行民谣歌曲贯穿全片的新好莱坞经典",
+                "美国传奇民谣摇滚双人组代表作，本片开创了以非原创流行金曲精准塑造角色迷茫心理的电影配乐先河（Simon & Garfunkel）。",
+                "《The Sound of Silence》在升d小调与F#大调之间游移，双人紧贴的平行三度人声和声如同镜像独白，将战后青春一代的疏离与静默刻画得入木三分。"],
+
+            [514, "jazz", "synth", "《猜火车》", "Trainspotting", "Born Slippy (Nuxx) / Lust for Life", "Underworld / 伊基·波普", 1996, "🏆 英国电影学院奖最佳剧本 · 90年代英伦电子圣歌",
+                ["Underworld Born Slippy", "Iggy Pop Lust for Life"], ["born slippy", "lust for life"], ["matrix", "clockwork orange"],
+                "4/4 拍 · 悬浮延迟合成器柱式和弦 × 疾速909电子重鼓",
+                "带着迷幻延迟回声（Delay）的温暖合成器柱式和弦如同呼吸般反复回荡，紧接着每分钟140拍的 Roland TR-909 重型电子底鼓如火车轰鸣般高速砸下，释放出冲破束缚的狂喜。",
+                "1996年 · 丹尼·博伊尔执导、定义90年代英伦青年文化的独立经典",
+                "英国传奇电子乐团 Underworld 的神作，片尾响起的这段合成器旋律成为了整个90年代电子乐与独立电影的图腾。",
+                "《Born Slippy》以极具悬浮感的合成器延音和弦先声夺人，随后切入高密度的 Techno/Breakbeat 复合鼓点，在迷幻失重与疾速狂奔之间形成了无与伦比的青春张力。"],
+
+            [515, "jazz", "auteur", "《鸟人》", "Birdman", "Doors and Distance / Get Ready", "安东尼奥·桑切斯 (Antonio Sánchez)", 2014, "🏆 奥斯卡最佳影片等4项大奖 · 全片纯爵士鼓独奏",
+                ["Antonio Sanchez Doors and Distance Birdman", "Antonio Sanchez Birdman"], ["birdman", "doors and distance", "antonio sanchez"], ["whiplash"],
+                "自由复合节拍 · 100% 纯原声爵士架子鼓即兴独奏",
+                "整首曲目没有任何钢琴、弦乐或管乐器，完全由一套原声爵士架子鼓（军鼓边缘敲击、松散老旧的踩镲、通鼓滚奏）在纽约街头般的真实房间混响中高速即兴对话。",
+                "2014年 · 伊纳里图执导、以伪一镜到底长镜头狂揽奥斯卡最佳影片与最佳导演的先锋杰作",
+                "墨西哥四届格莱美爵士鼓大师，对着片场演员走路与争吵的节奏现场即兴打鼓录制，开创了纯架子鼓撑起整部奥斯卡最佳影片的奇迹（安东尼奥·桑切斯）。",
+                "为了赋予鼓声粗糙的戏剧质感，桑切斯故意将鼓皮调松并在镲片上贴满胶带和硬币，让架子鼓直接化作主角焦虑不安的潜意识脉搏。"],
+
+            [516, "jazz", "minimal", "《绿皮书》", "Green Book", "The Lonesome Road / Blue Skies", "克里斯·鲍尔斯 (Kris Bowers)", 2018, "🏆 奥斯卡最佳影片等3项金像奖 · 古典跨界爵士钢琴",
+                ["Kris Bowers Green Book", "Kris Bowers Lonesome Road Green Book"], ["green book", "kris bowers", "lonesome road"], ["la la land", "soul"],
+                "4/4 拍 · 施坦威三角钢琴古典触键与南方蓝调摇摆结合",
+                "融合了肖邦式的欧洲古典学院派钢琴清澈触键与1960年代美式爵士三重奏（钢琴、立式贝斯、鼓刷）的温暖摇摆律动，琴声既端庄典雅又流淌着旅途的温情。",
+                "2018年 · 斩获奥斯卡最佳影片、最佳原创剧本与最佳男配角的温情公路传记片",
+                "茱莉亚音乐学院毕业的黑人青年爵士钢琴家兼作曲家，在片中亲自担任唐·雪莉博士的钢琴手替并包揽全片配乐（克里斯·鲍尔斯）。",
+                "这部原声精妙地再现了传奇钢琴家唐·雪莉“古典技巧+爵士灵魂”的跨界风格：右手是粒粒分明的巴洛克与浪漫派装饰音，左手则是富有弹性的爵士和声行进。"],
+
+            // ================= 维度 6：现代极简与哲思室内乐 (Minimalism & Chamber - 16首) =================
+            [601, "minimal", "eastern", "《圣诞快乐，劳伦斯先生》", "Merry Christmas, Mr. Lawrence", "Merry Christmas Mr. Lawrence", "坂本龙一 (Ryuichi Sakamoto)", 1983, "🏆 英国电影学院奖最佳配乐 · 影史不朽钢琴神作",
+                ["Ryuichi Sakamoto Merry Christmas Mr. Lawrence", "坂本龍一 Merry Christmas Mr. Lawrence"], ["merry christmas", "lawrence", "sakamoto"], ["last emperor", "revenant"],
+                "4/4 拍 · 甘美兰玻璃音色 × 印象派七和弦钢琴",
+                "极具辨识度的玻璃钟琴/甘美兰合成音色与三角钢琴结合：高音区不断重复着克制的五声音阶四音下行抗衡动机，底部则是色彩浓郁的七和弦与九和弦半音阶低音推进。",
+                "1983年 · 大岛渚执导、大卫·鲍伊与坂本龙一共同出演并斩获BAFTA最佳配乐的影史名作",
+                "日本音乐教父坂本龙一的传世签名曲，将德彪西印象派和声、印尼甘美兰音色与极简主义钢琴完美融合。",
+                "这首名曲的核心魅力在于“旋律极简”与“和声极繁”的张力：右手主旋律几乎只用五声音阶的几个音符循环吟唱，而左手低音则在复杂七和弦之间不断游移。"],
+
+            [602, "minimal", "auteur", "《天使爱美丽》", "Amélie", "Comptine d'un autre été: L'après-midi / La Valse d'Amélie", "扬·提尔森 (Yann Tiersen)", 2001, "🏆 法国凯撒奖最佳配乐 & 奥斯卡5项提名",
+                ["Yann Tiersen Comptine d'un autre ete", "Yann Tiersen La Valse d'Amelie"], ["comptine", "amelie", "amélie", "tiersen"], ["grand budapest"],
+                "4/4 或 3/4 拍 · 法式极简主义钢琴与手风琴",
+                "左手固定在 Em - G - Bm - D 四个和弦上以极为均匀、如八音盒发条般的十六分音符伴奏音型不断循环，右手高音区弹出轻盈剔透、略带法式忧郁与奇想的装饰音旋律。",
+                "2001年 · 让-皮埃尔·热内执导、风靡全球的法国浪漫奇想喜剧经典",
+                "法国布列塔尼多乐器演奏家，擅长将玩具钢琴、手风琴、拨弦羽管键琴与现代极简主义结合（扬·提尔森）。",
+                "扬·提尔森的作品被称为“街头极简主义”。左手严丝合缝的机械式分解和弦律动，衬托出右手高音旋律随性灵动的呼吸感。"],
+
+            [603, "minimal", "auteur", "《布达佩斯大饭店》", "The Grand Budapest Hotel", "Mr. Moustafa / Canto at Gabelmeister's Peak", "亚历山大·德斯普拉 (Alexandre Desplat)", 2014, "🏆 奥斯卡最佳原创配乐 & 格莱美奖",
+                ["Alexandre Desplat Mr. Moustafa Grand Budapest", "Grand Budapest Hotel Soundtrack Desplat"], ["grand budapest", "moustafa", "desplat"], ["shape of water", "imitation game"],
+                "2/4 拍 · 东欧巴拉莱卡三角琴、齐特琴与管风琴机巧室内乐",
+                "十几把俄罗斯巴拉莱卡三角琴（Balalaika）、阿尔卑斯齐特琴与清脆的定音鼓以如同精密瑞士钟表齿轮般的二拍子断奏高速拨弦，搭配俏皮的哨子与庄严的管风琴。",
+                "2014年 · 韦斯·安德森执导、狂揽奥斯卡最佳原创配乐等4项金像奖的美学杰作",
+                "法国当代配乐大师，为韦斯·安德森的对称构图量身定制了充满东欧民间色彩与机械律动感的室内乐团（亚历山大·德斯普拉）。",
+                "德斯普拉完全抛弃了传统好莱坞交响弦乐群，改用中欧与俄罗斯民间弹拨乐器组成庞大的拨弦阵列，用颗粒感极强的断奏音型精准咬合画面的每一次横移剪辑。"],
+
+            [604, "minimal", "synth", "《梦之安魂曲》", "Requiem for a Dream", "Lux Aeterna", "克林特·曼塞尔 & 克罗诺斯四重奏", 2000, "🎬 21世纪最具冲击力的极简弦乐四重奏",
+                ["Clint Mansell Lux Aeterna Requiem for a Dream", "Kronos Quartet Lux Aeterna"], ["lux aeterna", "requiem for a dream"], ["black swan", "fountain"],
+                "4/4 拍 · 极简主义弦乐四重奏与致命循环脉冲",
+                "克罗诺斯弦乐四重奏在 G 小调上奏出冷酷、宿命且不断重复的四小节锯齿状下行旋律动机，伴随冷峻的电子脉冲鼓点，一层接一层地将绝望与狂热推向崩溃边缘。",
+                "2000年 · 达伦·阿罗诺夫斯基执导的心理剧情名作，其主题曲后来更被改编为《指环王：双塔奇兵》预告片音乐而响彻全球",
+                "前英伦摇滚乐队主唱转型配乐大师，与先锋弦乐团 Kronos Quartet 合作创造出新世纪最著名的极简悲剧动机（克林特·曼塞尔）。",
+                "《Lux Aeterna》全曲严格遵循极简主义重复叠加法则：仅仅依靠两把小提琴、中提琴与大提琴在固定小调动机上的声部错位交织，便制造出令人窒息的漩涡感。"],
+
+            [605, "minimal", "synth", "《楚门的世界》", "The Truman Show", "Truman Sleeps", "菲利普·格拉斯 (Philip Glass)", 1998, "🏆 金球奖最佳原创配乐 · 美国极简主义宗师代表作",
+                ["Philip Glass Truman Sleeps", "The Truman Show Philip Glass"], ["truman sleeps", "truman show"], ["hours", "koyaanisqatsi"],
+                "4/4 拍 · 菲利普·格拉斯标志性二对三复节奏极简钢琴",
+                "一架安静温润的独奏三角钢琴在降A大调与F小调之间，弹出极具催眠感与哲学静谧感的分解琶音循环（右手三连音与左手八分音符微妙交错），弦乐长音如月光般轻柔笼罩。",
+                "1998年 · 彼得·威尔执导、金·凯瑞主演并斩获金球奖最佳原创配乐的反乌托邦哲思经典",
+                "20世纪美国极简主义音乐（Minimalism）四大宗师之一，其标志性的“循环琶音脉冲”深刻影响了整个现代电影配乐界（菲利普·格拉斯）。",
+                "《Truman Sleeps》短短两分钟内只使用了四个基础和弦的循环变奏，但格拉斯通过精妙的“二对三”复合节奏律动，让简单的钢琴琶音流淌出如梦初醒般的纯真与哀愁。"],
+
+            [606, "minimal", "auteur", "《钢琴课》", "The Piano", "The Heart Asks Pleasure First", "迈克尔·尼曼 (Michael Nyman)", 1993, "🏆 戛纳金棕榈奖 & 原声唱片全球销量破300万张",
+                ["Michael Nyman The Heart Asks Pleasure First", "The Piano Michael Nyman"], ["heart asks pleasure first", "michael nyman", "the piano"], ["hours", "amelie"],
+                "12/8 拍 · 极简主义浪潮式钢琴琶音",
+                "独奏三角钢琴在 A 小调上以汹涌澎湃的 12/8 拍复合节拍分解和弦如海浪般不断翻涌，右手用双音与八度重音弹奏出改编自苏格兰古老民谣的执着、炽热且充满内在张力的旋律。",
+                "1993年 · 简·坎皮恩执导、斩获戛纳电影节最高荣誉金棕榈奖与3项奥斯卡大奖的古典爱情名作",
+                "英国极简主义作曲家，甚至正是他最早在1968年的乐评中创造了“极简主义音乐（Minimalism）”这一术语（迈克尔·尼曼）。",
+                "尼曼在这首名作中将苏格兰民间旋律置于高密度的极简主义固定琶音之上。连绵不绝的踏板共鸣与奔涌的三连音浪潮，让独奏钢琴爆发出交响乐般的情感洪流。"],
+
+            [607, "minimal", "symphonic", "《美丽心灵》", "A Beautiful Mind", "A Kaleidoscope of Mathematics", "詹姆斯·霍纳 (James Horner)", 2001, "🏆 奥斯卡最佳影片 & 最佳原创配乐提名",
+                ["James Horner Kaleidoscope of Mathematics", "Beautiful Mind James Horner"], ["kaleidoscope of mathematics", "beautiful mind"], ["titanic", "braveheart"],
+                "4/4 拍 · 高速旋转钢琴琶音、钢片琴与空灵女高音无词吟唱",
+                "多架钢琴与钢片琴以极高速度交替弹奏出精密旋转的分解和弦音型，上方夏洛特·丘奇（Charlotte Church）清澈空灵的女高音无词吟唱如灵感闪现般穿梭于弦乐群之间。",
+                "2001年 · 朗·霍华德执导、斩获奥斯卡最佳影片等4项金像奖的数学家纳什传记片",
+                "詹姆斯·霍纳受极简主义大师菲利普·格拉斯启发，用高速旋转的钢琴多声部卡农来具象化天才数学家大脑中的公式风暴。",
+                "《A Kaleidoscope of Mathematics》通过钢琴声部高速的半音阶模进与女高音宽广的连奏形成一快一慢的双层时空，将枯燥的数学逻辑转化为绚丽的万花筒音景。"],
+
+            [608, "minimal", "symphonic", "《阿甘正传》", "Forrest Gump", "I'm Forrest... Forrest Gump (Feather Theme)", "亚伦·史维斯查 (Alan Silvestri)", 1994, "🏆 奥斯卡最佳影片等6项金像奖 · 羽毛钢琴主题",
+                ["Alan Silvestri Forrest Gump Suite", "I'm Forrest Forrest Gump Silvestri"], ["forrest gump"], ["back to the future", "avengers", "cast away"],
+                "4/4 拍 · 随风飘舞的G大调轻柔钢琴与温暖弦乐",
+                "一架清澈温暖的独奏钢琴在 G 大调高音区轻轻弹出如同羽毛随风起落般的分解和弦动机，随后双簧管与柔美的弦乐声部缓缓承接，流淌出纯真、善良而豁达的美国田园诗意。",
+                "1994年 · 横扫奥斯卡最佳影片、最佳导演、最佳男主角等6项金像奖的影史励志经典",
+                "亚伦·史维斯查与导演泽米吉斯黄金搭档的温情巅峰，仅用寥寥几个自然音阶音符便勾勒出羽毛在空中飘舞的轨迹。",
+                "《Feather Theme》完全使用最纯净的 G 大调自然音阶，旋律线条通过连续的三度上行与轻巧回落，在听觉上完美复刻了片头那根白羽随风摇曳的轻盈姿态。"],
+
+            [609, "minimal", "symphonic", "《肖申克的救赎》", "The Shawshank Redemption", "Stoic Theme / Shawshank Redemption", "托马斯·纽曼 (Thomas Newman)", 1994, "🏆 奥斯卡最佳配乐提名 · IMDb影史评分第一神作",
+                ["Thomas Newman Shawshank Redemption", "Thomas Newman Brooks Was Here"], ["shawshank", "brooks was here", "stoic theme"], ["american beauty", "1917", "wall-e"],
+                "4/4 拍 · 克制内敛的钢琴五度挂留音与悲悯室内弦乐",
+                "独奏钢琴与大提琴以极为克制、缓慢的步调奏出带有空旷五度与挂留音色彩的沉思动机，木管与弦乐在高墙般的静谧混响中层层舒展，最终在暴雨般的铜管与弦乐全奏中迎来自由救赎。",
+                "1994年 · 常年稳居 IMDb 与豆瓣影史排行榜第一名的精神礼赞巨作",
+                "好莱坞传奇音乐世家纽曼家族传人，擅长使用透明的钢琴五度音程与独特的室内乐质感刻画人物内心的坚韧（托马斯·纽曼）。",
+                "纽曼在这部原声中刻意避开了廉价的煽情，大量运用不含三音的空五度和弦与缓慢的弦乐四部和声，让高潮处大调主和弦的最终解决充满洗礼般的力量。"],
+
+            [610, "minimal", "synth", "《荒野猎人》", "The Revenant", "The Revenant Main Theme", "坂本龙一 & 阿尔瓦·诺托 (Alva Noto)", 2015, "🏆 斩获奥斯卡最佳导演、最佳男主角与最佳摄影",
+                ["Ryuichi Sakamoto The Revenant Main Theme", "Sakamoto Alva Noto Revenant"], ["revenant"], ["merry christmas", "last emperor"],
+                "缓板 · 极寒冰原余音弦乐 × 极简微电子脉冲",
+                "极其缓慢、凄冷的低音弦乐长音在漫长的冰原混响空间中缓缓拉响，每一个音符之后都留有漫长的空气寂静，底层则潜伏着德国极简电子音乐家调制出的冰晶般的微频正弦波。",
+                "2015年 · 伊纳里图执导、助莱昂纳多夺得奥斯卡影帝的极寒自然生存史诗",
+                "坂本龙一大病初愈后的复出心血之作，与德国极简电子艺术家 Alva Noto 合作，将大自然本身当成主角来配乐。",
+                "《The Revenant Main Theme》将极简主义推向了禅宗式的极致：单薄而苍凉的弦乐四度下行之后，是长达数秒的呼吸留白，让听众真切感受到冰原荒野的敬畏与孤寂。"],
+
+            [611, "minimal", "auteur", "《模仿游戏》", "The Imitation Game", "The Imitation Game (Main Theme)", "亚历山大·德斯普拉 (Alexandre Desplat)", 2014, "🏆 奥斯卡最佳改编剧本 & 最佳原创配乐提名",
+                ["Alexandre Desplat The Imitation Game", "Imitation Game Main Theme Desplat"], ["imitation game"], ["grand budapest", "shape of water"],
+                "3/4 拍 · 精密旋转的钢琴琶音机器脉冲与抒情弦乐",
+                "清脆快速的原声钢琴分解琶音与钢片琴如恩尼格玛密码机转轮般不知疲倦地精密旋转，上方全编制弦乐群奏出一条优雅、孤独却充满智性光辉的小调华尔兹旋律。",
+                "2014年 · 聚焦计算机科学之父艾伦·图灵生平、夺得奥斯卡大奖的传记佳作",
+                "那一年亚历山大·德斯普拉凭借本片与《布达佩斯大饭店》罕见地实现“自己打自己”双片同时入围奥斯卡最佳原创配乐。",
+                "德斯普拉用永不停歇的三拍子钢琴十六分音符琶音模拟图灵机齿轮的运转，而上方温暖的弦乐长线条则倾诉着机器背后那个不被时代理解的孤独灵魂。"],
+
+            [612, "minimal", "auteur", "《水形物语》", "The Shape of Water", "The Shape of Water / Elisa's Theme", "亚历山大·德斯普拉 (Alexandre Desplat)", 2017, "🏆 奥斯卡最佳影片 & 最佳原创配乐 & 威尼斯金狮奖",
+                ["Alexandre Desplat The Shape of Water", "Elisa's Theme Shape of Water Desplat"], ["shape of water", "elisa's theme"], ["grand budapest", "imitation game"],
+                "3/4 拍 · 水底质感手风琴、玻璃口琴与12支长笛华尔兹",
+                "12支长笛、手风琴、钢片琴与晶莹的口哨在温暖如深海波光般的混响中，共同编织出一曲轻盈摇曳、充满法式童话色彩的 3/4 拍水底华尔兹。",
+                "2017年 · 吉尔莫·德尔·托罗执导、包揽威尼斯金狮奖与奥斯卡最佳影片及最佳原创配乐的奇幻爱情名作",
+                "作曲家刻意弃用沉重的铜管乐器，改用12支长笛组成的木管阵列与手风琴来模拟水波流动的温柔触感（亚历山大·德斯普拉）。",
+                "全曲以水波般的六连音木管波动与三拍子手风琴圆舞曲为核心，大七和弦与九和弦的柔美色彩赋予了这段跨物种童话极致的浪漫与诗意。"],
+
+            [613, "minimal", "jazz", "《请以你的名字呼唤我》", "Call Me by Your Name", "Mystery of Love / Visions of Gideon", "苏夫扬·史蒂文斯 (Sufjan Stevens)", 2017, "🏆 奥斯卡最佳改编剧本 & 最佳原创歌曲提名",
+                ["Sufjan Stevens Mystery of Love", "Sufjan Stevens Visions of Gideon"], ["mystery of love", "visions of gideon", "sufjan"], ["brokeback", "amelie"],
+                "4/4 拍 · 意大利夏日原声吉他指弹、曼陀铃与气声吟唱",
+                "清脆透明的原声木吉他与曼陀铃在北意大利夏日阳光般的声场中轻轻拨响，伴随空灵细腻的男声气声轻吟与柔美的室内弦乐及长笛点缀。",
+                "2017年 · 卢卡·瓜达尼诺执导、斩获奥斯卡最佳改编剧本奖的夏日青春文艺经典",
+                "美国独立民谣与极简室内乐才子专门为影片量身谱写，用极其透明的原声乐器捕捉1983年意大利夏日的蝉鸣与微风（Sufjan Stevens）。",
+                "《Mystery of Love》采用 G 大调与 E 小调交替的轻盈指弹吉他音型，不加修饰的气声人声与室内弦乐轻轻交叠，宛如一首用声音写就的夏日十四行诗。"],
+
+            [614, "minimal", "eastern", "《色，戒》", "Lust, Caution", "Wong Chia Chi's Theme / Dinner Waltz", "亚历山大·德斯普拉 (Alexandre Desplat)", 2007, "🏆 威尼斯金狮奖 & 金马奖最佳原创电影音乐",
+                ["Alexandre Desplat Wong Chia Chi's Theme", "Lust Caution Soundtrack Desplat"], ["lust, caution", "wong chia chi", "desplat"], ["in the mood for love", "grand budapest"],
+                "3/4 拍 · 步步惊心的希区柯克式室内弦乐与琵琶/二胡暗流",
+                "大提琴与小提琴声部在低音区以极为压抑、紧绷的半音阶三拍子慢速华尔兹缓慢推进，如履薄冰的钢琴单音与暗流涌动的东方弦乐交织出令人窒息的悬疑与宿命感。",
+                "2007年 · 李安执导、二度夺得威尼斯电影节最高荣誉金狮奖并获金球奖最佳配乐提名的时代巨作",
+                "法国配乐大师德斯普拉与李安的跨文化合作，将伯纳德·赫尔曼式的悬疑弦乐与1940年代旧上海的幽暗华尔兹融为一体。",
+                "《Wong Chia Chi's Theme》以一个不断盘旋上升却始终无法喘息的半音阶弦乐动机为核心，三拍子圆舞曲的优雅外表下，每一拍都藏着特工博弈的惊心动魄。"],
+
+            [615, "minimal", "synth", "《小丑》", "Joker", "Call Me Joker / Bathroom Dance", "希尔杜·古拿多提瑞 (Hildur Guðnadóttir)", 2019, "🏆 奥斯卡、金球奖、格莱美最佳原创配乐大满贯",
+                ["Hildur Gudnadottir Call Me Joker", "Hildur Gudnadottir Bathroom Dance Joker"], ["joker", "bathroom dance", "hildur"], ["dark knight", "chernobyl"],
+                "慢板 · 冰岛独奏电大提琴微分音悲歌与沉重铜管",
+                "一把孤寂、嘶哑且充满摩擦颗粒感的独奏大提琴（Halldorophone 电声大提琴）在幽暗深渊中拉出缓慢爬升的三音符小调叹息动机，随后90人交响乐团的低音铜管与定音鼓如海啸般将其吞没。",
+                "2019年 · 擒获威尼斯金狮奖，并让作曲家包揽奥斯卡、金球奖、BAFTA与格莱美最佳配乐大满贯的暗黑心理名作",
+                "冰岛女大提琴家兼作曲家，也是已故大师约翰·约翰逊的门生；华金·菲尼克斯在片场正是直接听着她提前录好的这段大提琴独奏即兴跳出了著名的浴室之舞。",
+                "全曲以独奏大提琴为核心叙事视角：起初只是一根琴弦微弱颤抖的孤立单音，随着内心的扭曲与黑化，管弦乐团的低音铜管声部从背后悄然逼近，完成了极具压迫感的心理蜕变。"],
+
+            [616, "minimal", "auteur", "《赎罪》", "Atonement", "Briony / Elegy for Dunkirk", "达里奥·马里安奈利 (Dario Marianelli)", 2007, "🏆 奥斯卡最佳原创配乐 & 金球奖最佳剧情片",
+                ["Dario Marianelli Briony Atonement", "Dario Marianelli Elegy for Dunkirk"], ["briony", "atonement", "marianelli"], ["pride & prejudice", "imitation game"],
+                "4/4 拍 · 机械老式打字机敲击节拍 × 独奏钢琴与弦乐",
+                "将老式机械打字机清脆的按键敲击声、回车拉杆声与归位铃声（“叮！”）直接作为乐曲的打击乐节拍器，独奏钢琴与焦灼的弦乐声部踩着打字机的急促节奏层层推进。",
+                "2007年 · 乔·赖特执导、夺得奥斯卡最佳原创配乐金像奖与金球奖最佳影片的英伦文学改编经典",
+                "意大利作曲家，创造性地让“一台老式机械打字机”与古典钢琴家同台协奏，将“书写谎言”这一动作直接转化为音乐节奏（达里奥·马里安奈利）。",
+                "《Briony》是影史“具象音响音乐化（Musique Concrète）”的杰作：打字机敲击字母的十六分音符脉冲不仅提供了机械极简主义的律动，换行时的清脆铃声更精准充当了小节重音。"]
+        ];
+
+        // 将紧凑数组构建为完整的 100 首对象池，并自动生成同维度高迷惑度四选一选项
+        const MASTER_SOUNDTRACK_POOL = RAW_100_DATA.map(row => {
+            const [
+                id, primaryDim, secondaryDim, title, enTitle, trackName,
+                composer, year, awardTag, searchQueries, mustMatchTrack,
+                excludeTrack, timeSig, acousticClue, eraHint, composerHint, analysis
+            ] = row;
+
+            const cleanCh = title.replace(/[《》]/g, "");
+            return {
+                id,
+                primaryDim,
+                secondaryDim,
+                title,
+                enTitle,
+                trackName,
+                composer,
+                year,
+                awardTag,
+                searchQueries,
+                mustMatchTrack,
+                excludeTrack,
+                climaxOffset: 6,
+                aliases: [title, cleanCh, enTitle, trackName],
+                timeSig,
+                acousticClue,
+                eraHint,
+                composerHint,
+                analysis,
+                options: [] // 稍后按同维度年代智能生成
+            };
+        });
+
+        // 为每首曲目从相同维度（且年代相近）智能挑选 3 个高知名度干扰项，彻底杜绝靠选项排除猜题
+        MASTER_SOUNDTRACK_POOL.forEach(track => {
+            const sameDimCandidates = MASTER_SOUNDTRACK_POOL.filter(
+                other => other.id !== track.id && other.primaryDim === track.primaryDim
+            );
+            // 按年份差距排序，取年代最接近的 6 部再随机挑 3 部
+            sameDimCandidates.sort((a, b) => Math.abs(a.year - track.year) - Math.abs(b.year - track.year));
+            const topNear = sameDimCandidates.slice(0, 7);
+            const pickedDistractors = [];
+            const copy = [...topNear];
+            while (pickedDistractors.length < 3 && copy.length > 0) {
+                const rIdx = Math.floor(Math.random() * copy.length);
+                pickedDistractors.push(copy.splice(rIdx, 1)[0].title);
+            }
+            track.options = [track.title, ...pickedDistractors];
+        });
+
+        // ==========================================
+        // 3. 游戏全局状态、100首不重复记忆抽题引擎与严格音轨验证
+        // ==========================================
+        const audioEl = document.getElementById('real-audio-player');
+        let audioCtx = null;
+        let analyser = null;
+        let mediaSourceNode = null;
+        let isAudioGraphConnected = false;
+
+        let SOUNDTRACKS = []; // 当前这局随机抽出的 10 首题目
+        let currentIndex = 0;
+        let score = 0;
+        let streak = 0;
+        let maxStreak = 0;
+        let correctCount = 0;
+        let hasAnsweredCurrent = false;
+        let currentInputMode = 'mc';
+        const OPTION_BASE_CLASS = "option-btn group w-full text-left px-4 py-4 sm:py-5 rounded-xl flex items-center gap-3.5 transition-all duration-200";
+        const OPTION_IDLE_CLASS = "bg-zinc-950/90 border-2 border-zinc-800 hover:border-amber-500 hover:bg-zinc-900 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-500/10 active:scale-[0.98] focus-visible:outline-none focus-visible:border-amber-400";
+        let clipDurationLimit = 10;
+        let clipStartPoint = 0;
+        let hintsUsedInCurrentTrack = 0;
+
+        let sessionHistory = [];
+        const resolvedAudioCache = {};
+
+        // 读取/保存玩家已解锁探索过的曲目 ID 集合 (localStorage)
+        const SEEN_STORAGE_KEY = "ost_quiz_seen_100_ids_v2";
+        function getSeenIds() {
+            try {
+                const raw = localStorage.getItem(SEEN_STORAGE_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        function markIdAsSeen(id) {
+            try {
+                const current = getSeenIds();
+                if (!current.includes(id)) {
+                    current.push(id);
+                    localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(current));
+                }
+                updateUnlockedCounterUI();
+            } catch (e) {}
+        }
+        function resetSeenHistory() {
+            try {
+                localStorage.removeItem(SEEN_STORAGE_KEY);
+                updateUnlockedCounterUI();
+                openPoolCatalogModal();
+            } catch (e) {}
+        }
+        function updateUnlockedCounterUI() {
+            const seen = getSeenIds();
+            const badge = document.getElementById('unlocked-count-badge');
+            if (badge) {
+                badge.textContent = `已探索 ${seen.length} / ${MASTER_SOUNDTRACK_POOL.length} 首`;
+            }
+        }
+
+        // Fisher-Yates 洗牌函数
+        function shuffleArray(arr) {
+            const copy = [...arr];
+            for (let i = copy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+        }
+
+        // 分层随机抽取 10 首：从 100 首曲库中优先抽取玩家未听过的曲目，且确保六个维度均衡覆盖
+        function buildRandomTenPlaylist() {
+            let seenIds = getSeenIds();
+            // 如果未听过的曲目不足 10 首，自动开启新一轮百首循环
+            const unseenCount = MASTER_SOUNDTRACK_POOL.filter(t => !seenIds.includes(t.id)).length;
+            if (unseenCount < 10) {
+                seenIds = [];
+                try { localStorage.removeItem(SEEN_STORAGE_KEY); } catch (e) {}
+            }
+
+            const selected = [];
+            const remainingUnseen = [];
+            const remainingSeen = [];
+
+            DIMENSION_KEYS.forEach(dimKey => {
+                const dimAll = MASTER_SOUNDTRACK_POOL.filter(t => t.primaryDim === dimKey);
+                const dimUnseen = shuffleArray(dimAll.filter(t => !seenIds.includes(t.id)));
+                const dimSeen = shuffleArray(dimAll.filter(t => seenIds.includes(t.id)));
+
+                const orderedDim = [...dimUnseen, ...dimSeen];
+                if (orderedDim.length > 0) {
+                    selected.push(orderedDim[0]);
+                    for (let i = 1; i < orderedDim.length; i++) {
+                        if (!seenIds.includes(orderedDim[i].id)) {
+                            remainingUnseen.push(orderedDim[i]);
+                        } else {
+                            remainingSeen.push(orderedDim[i]);
+                        }
+                    }
+                }
+            });
+
+            const poolForExtraFour = [...shuffleArray(remainingUnseen), ...shuffleArray(remainingSeen)];
+            const extraFour = poolForExtraFour.slice(0, 10 - selected.length);
+            return shuffleArray([...selected, ...extraFour]);
+        }
+
+        // ==========================================
+        // 核心修复：严格音轨验证算法（彻底杜绝《大白鲨》匹配到约翰·威廉姆斯合辑第一首《星球大战》的问题）
+        // ==========================================
+        async function fetchRealSoundtrack(trackObj) {
+            if (resolvedAudioCache[trackObj.id]) {
+                return resolvedAudioCache[trackObj.id];
+            }
+
+            const mustList = (trackObj.mustMatchTrack || []).map(k => k.toLowerCase());
+            const excludeList = (trackObj.excludeTrack || []).map(k => k.toLowerCase());
+            const bannedStyleWords = ['8-bit', '8 bit', 'karaoke', 'ringtone', 'lullaby', 'tribute to', 'music box', 'piano guys', 'metal version', 'trap remix'];
+
+            for (const query of trackObj.searchQueries) {
+                try {
+                    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=15`;
+                    const res = await fetch(url);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (!data.results || data.results.length === 0) continue;
+
+                    // 对每一条返回的音轨进行严格评分与黑名单剔除
+                    const scoredCandidates = [];
+
+                    for (const item of data.results) {
+                        if (!item.previewUrl) continue;
+                        const tName = (item.trackName || "").toLowerCase();
+                        const cName = (item.collectionName || "").toLowerCase();
+                        const aName = (item.artistName || "").toLowerCase();
+                        const fullText = `${tName} ${cName} ${aName}`;
+
+                        // 1. 剔除山寨铃声、八音盒、伴奏翻唱版
+                        if (bannedStyleWords.some(bad => fullText.includes(bad))) continue;
+
+                        // 2. 关键：如果音轨名称 (trackName) 包含任何 excludeTrack 词（例如搜大白鲨时 trackName 叫 Star Wars），立即一票否决！
+                        if (excludeList.some(ex => tName.includes(ex))) continue;
+
+                        // 3. 计算匹配得分：要求 trackName 本身优先命中 mustMatchTrack，而不能仅靠专辑名叫《Best of John Williams》混过去
+                        let matchScore = 0;
+                        const trackNameHit = mustList.some(m => tName.includes(m));
+                        const collectionHit = mustList.some(m => cName.includes(m));
+
+                        if (trackNameHit) {
+                            matchScore += 100;
+                        } else if (collectionHit && !excludeList.some(ex => fullText.includes(ex))) {
+                            matchScore += 35;
+                        } else {
+                            // 既没命中音轨名也没命中专辑名，跳过
+                            continue;
+                        }
+
+                        // 如果艺术家名称与原作曲家匹配，额外加分
+                        const composerEn = (trackObj.composer.match(/\(([^)]+)\)/)?.[1] || trackObj.composer).toLowerCase();
+                        const composerParts = composerEn.split(/[\s&]+/).filter(p => p.length > 3);
+                        if (composerParts.some(p => aName.includes(p))) {
+                            matchScore += 40;
+                        }
+
+                        // 原声带官方专辑加分
+                        if (cName.includes('motion picture') || cName.includes('soundtrack') || cName.includes('original score')) {
+                            matchScore += 20;
+                        }
+
+                        scoredCandidates.push({ item, matchScore });
+                    }
+
+                    scoredCandidates.sort((a, b) => b.matchScore - a.matchScore);
+
+                    if (scoredCandidates.length > 0) {
+                        const bestMatch = scoredCandidates[0].item;
+                        const highResArtwork = bestMatch.artworkUrl100
+                            ? bestMatch.artworkUrl100.replace('100x100bb', '600x600bb')
+                            : 'https://placehold.co/400x400/18181b/f59e0b?text=OST';
+                        const resolved = {
+                            previewUrl: bestMatch.previewUrl,
+                            artworkUrl: highResArtwork,
+                            matchedTrackName: bestMatch.trackName,
+                            matchedArtist: bestMatch.artistName,
+                            collectionName: bestMatch.collectionName
+                        };
+                        resolvedAudioCache[trackObj.id] = resolved;
+                        return resolved;
+                    }
+                } catch (err) {
+                    console.warn("iTunes query attempt failed:", query, err);
+                }
+            }
+            return null;
+        }
+
+        // 连接真实 <audio> 到 Web Audio API 频谱分析器
+        function ensureWebAudioAnalyser() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            if (!isAudioGraphConnected) {
+                try {
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 128;
+                    analyser.smoothingTimeConstant = 0.82;
+                    mediaSourceNode = audioCtx.createMediaElementSource(audioEl);
+                    mediaSourceNode.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                    isAudioGraphConnected = true;
+                } catch (e) {
+                    // 如果跨域限制无法接入 AnalyserNode，仍然保证原生 Audio 正常发声，频谱切换到动态模拟
+                    console.warn("Audio element direct playback active:", e);
+                }
+            }
+        }
+
+        // ==========================================
+        // 3. 播放控制与切片限时逻辑
+        // ==========================================
+        async function togglePlay() {
+            if (!audioEl.src) return;
+            ensureWebAudioAnalyser();
+
+            if (!audioEl.paused) {
+                audioEl.pause();
+            } else {
+                // 如果已经播到当前切片上限，回到起点重播
+                if (audioEl.currentTime >= clipStartPoint + clipDurationLimit || audioEl.ended) {
+                    audioEl.currentTime = clipStartPoint;
+                }
+                try {
+                    await audioEl.play();
+                } catch (err) {
+                    console.error("Play failed:", err);
+                }
+            }
+        }
+
+        function replayFromStart() {
+            if (!audioEl.src) return;
+            ensureWebAudioAnalyser();
+            clipStartPoint = 0;
+            audioEl.currentTime = 0;
+            audioEl.play().catch(() => {});
+        }
+
+        function jumpToClimax() {
+            if (!audioEl.src) return;
+            ensureWebAudioAnalyser();
+            const track = SOUNDTRACKS[currentIndex];
+            clipStartPoint = track.climaxOffset || 8;
+            audioEl.currentTime = clipStartPoint;
+            audioEl.play().catch(() => {});
+        }
+
+        function seekAudio(val) {
+            if (!audioEl.src) return;
+            clipStartPoint = parseFloat(val);
+            audioEl.currentTime = clipStartPoint;
+        }
+
+        function updateVolume(val) {
+            audioEl.volume = val / 100;
+        }
+
+        function setClipLimit(seconds) {
+            clipDurationLimit = seconds;
+            [3, 10, 30].forEach(sec => {
+                const btn = document.getElementById(`dur-btn-${sec}`);
+                if (sec === seconds) {
+                    btn.className = "py-1.5 px-2 rounded-lg text-xs font-semibold transition bg-amber-500 text-black flex items-center justify-center gap-1";
+                } else {
+                    btn.className = "py-1.5 px-2 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white flex items-center justify-center gap-1";
+                }
+            });
+
+            if (!audioEl.paused && audioEl.currentTime > clipStartPoint + clipDurationLimit) {
+                audioEl.currentTime = clipStartPoint;
+            }
+        }
+
+        // 监听 Audio 事件同步黑胶唱机动画与进度条
+        audioEl.addEventListener('play', () => updateVinylUI(true));
+        audioEl.addEventListener('pause', () => updateVinylUI(false));
+        audioEl.addEventListener('ended', () => updateVinylUI(false));
+
+        audioEl.addEventListener('timeupdate', () => {
+            const cur = audioEl.currentTime;
+            const dur = audioEl.duration || 30;
+            document.getElementById('audio-scrubber').max = dur.toFixed(1);
+            document.getElementById('audio-scrubber').value = cur;
+            document.getElementById('current-time-text').textContent = formatTime(cur);
+            document.getElementById('total-time-text').textContent = formatTime(dur);
+
+            // 检查是否达到 3秒 / 10秒 盲听挑战上限（若尚未作答）
+            if (!hasAnsweredCurrent && clipDurationLimit < 30) {
+                if (cur >= clipStartPoint + clipDurationLimit) {
+                    audioEl.pause();
+                }
+            }
+        });
+
+        function formatTime(sec) {
+            const s = Math.floor(sec % 60);
+            return `00:${s < 10 ? '0' + s : s}`;
+        }
+
+        function updateVinylUI(playing) {
+            const vinyl = document.getElementById('vinyl-disc');
+            const tonearm = document.getElementById('tonearm');
+            const aura = document.getElementById('vinyl-aura');
+            const playIcon = document.getElementById('play-icon');
+            const playText = document.getElementById('play-btn-text');
+
+            if (playing) {
+                vinyl.classList.remove('vinyl-paused');
+                vinyl.classList.add('vinyl-spinning');
+                tonearm.classList.remove('tonearm-idle');
+                tonearm.classList.add('tonearm-playing');
+                aura.classList.add('scale-110', 'opacity-90');
+                playIcon.className = "fa-solid fa-pause";
+                playText.textContent = "暂停原声播放";
+            } else {
+                vinyl.classList.remove('vinyl-spinning');
+                vinyl.classList.add('vinyl-paused');
+                tonearm.classList.remove('tonearm-playing');
+                tonearm.classList.add('tonearm-idle');
+                aura.classList.remove('scale-110', 'opacity-90');
+                playIcon.className = "fa-solid fa-play";
+                playText.textContent = "播放真实原声";
+            }
+        }
+
+        // ==========================================
+        // 4. 实时频谱可视化绘制
+        // ==========================================
+        function startVisualizerLoop() {
+            const canvas = document.getElementById('audio-visualizer');
+            const ctx = canvas.getContext('2d');
+
+            function resizeCanvas() {
+                canvas.width = canvas.clientWidth * window.devicePixelRatio;
+                canvas.height = canvas.clientHeight * window.devicePixelRatio;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            const bufferLength = 42;
+            const dataArray = new Uint8Array(64);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const isPlayingNow = !audioEl.paused && !audioEl.ended;
+
+                if (analyser && isPlayingNow) {
+                    analyser.getByteFrequencyData(dataArray);
+                }
+
+                const barWidth = (canvas.width / bufferLength) * 0.72;
+                const gap = (canvas.width / bufferLength) * 0.28;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    let val = dataArray[i] || 0;
+                    // 若因浏览器跨域安全策略导致 AnalyserNode 数据全为0但音乐正在播放，使用自然声学包络动画
+                    if (isPlayingNow && val === 0) {
+                        const t = performance.now() * 0.006;
+                        val = 65 + Math.sin(t + i * 0.45) * 50 + Math.cos(t * 1.7 - i * 0.3) * 35;
+                    } else if (!isPlayingNow) {
+                        val = 8;
+                    }
+
+                    const percent = Math.max(0.08, Math.min(1, val / 255));
+                    const barHeight = percent * (canvas.height * 0.86);
+                    const y = (canvas.height - barHeight) / 2;
+
+                    const grad = ctx.createLinearGradient(0, y, 0, y + barHeight);
+                    grad.addColorStop(0, '#fcd34d');
+                    grad.addColorStop(0.5, '#f59e0b');
+                    grad.addColorStop(1, '#10b981');
+
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.roundRect(x, y, barWidth, barHeight, 4);
+                    ctx.fill();
+
+                    x += barWidth + gap;
+                }
+            }
+            draw();
+        }
+
+        // ==========================================
+        // 5. 关卡加载、零剧透提示与判分逻辑
+        // ==========================================
+        async function loadLevel(index) {
+            audioEl.pause();
+            clipStartPoint = 0;
+            hasAnsweredCurrent = false;
+            hintsUsedInCurrentTrack = 0;
+            const track = SOUNDTRACKS[index];
+            const dimInfo = DIMENSIONS[track.primaryDim] || DIMENSIONS.symphonic;
+
+            // 记录该曲目已被玩家探索遇到过
+            markIdAsSeen(track.id);
+
+            // 更新顶部计数与进度
+            document.getElementById('current-level-num').textContent = index + 1;
+            document.getElementById('total-level-num').textContent = SOUNDTRACKS.length;
+            const progressPercent = ((index + 1) / SOUNDTRACKS.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+            document.getElementById('track-badge').textContent = `STAGE ${index + 1 < 10 ? '0' + (index + 1) : index + 1}/${SOUNDTRACKS.length}`;
+            document.getElementById('dimension-badge').innerHTML = `<i class="fa-solid ${dimInfo.icon} mr-1"></i>${dimInfo.name}维度`;
+            document.getElementById('award-honor-tag').textContent = track.awardTag || '';
+
+            // 重置唱片中心模糊遮罩（防止封面剧透）
+            const coverImg = document.getElementById('vinyl-cover-img');
+            const mysteryOverlay = document.getElementById('vinyl-mystery-overlay');
+            coverImg.classList.add('blur-md', 'opacity-50');
+            mysteryOverlay.classList.remove('hidden');
+
+            // 填充零剧透声学与年代线索
+            document.getElementById('track-time-sig').textContent = track.timeSig;
+            document.getElementById('acoustic-clue-text').textContent = track.acousticClue;
+
+            const h1Content = document.getElementById('hint1-content');
+            const h2Content = document.getElementById('hint2-content');
+            const h1Btn = document.getElementById('hint1-btn');
+            const h2Btn = document.getElementById('hint2-btn');
+
+            h1Content.textContent = track.eraHint;
+            h2Content.textContent = track.composerHint;
+            h1Content.classList.add('hidden');
+            h2Content.classList.add('hidden');
+            h1Btn.classList.remove('hidden');
+            h2Btn.classList.remove('hidden');
+
+            // 隐藏上一题解析，重置输入框
+            document.getElementById('reveal-panel').classList.add('hidden');
+
+            // 渲染四个同题材高迷惑度选项
+            const shuffledOptions = shuffleArray(track.options);
+            const mcContainer = document.getElementById('mc-options-container');
+            mcContainer.innerHTML = '';
+
+            shuffledOptions.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = OPTION_BASE_CLASS + " " + OPTION_IDLE_CLASS;
+                btn.dataset.option = opt;
+                btn.onclick = () => submitMcAnswer(opt, btn);
+                btn.innerHTML = `
+                    <span class="option-key w-8 h-8 rounded-lg bg-zinc-900 group-hover:bg-amber-500 group-hover:text-black text-zinc-400 font-bold text-sm flex items-center justify-center border border-zinc-700 group-hover:border-amber-400 transition mono-font shrink-0">${i + 1}</span>
+                    <span class="flex-1 font-semibold text-base sm:text-lg text-zinc-100 group-hover:text-white transition">${escapeHtml(opt)}</span>
+                    <i class="option-icon fa-solid fa-chevron-right text-sm text-zinc-600 group-hover:text-amber-400 group-hover:translate-x-0.5 transition"></i>
+                `;
+                mcContainer.appendChild(btn);
+            });
+
+            // 异步拉取真实原声流
+            const spinner = document.getElementById('loading-spinner');
+            const sourceText = document.getElementById('audio-source-text');
+            const playBtn = document.getElementById('play-btn');
+            spinner.className = "fa-solid fa-circle-notch fa-spin text-amber-400";
+            sourceText.textContent = "连接真实原声流...";
+            playBtn.disabled = true;
+
+            const resolved = await fetchRealSoundtrack(track);
+            playBtn.disabled = false;
+
+            if (resolved && resolved.previewUrl) {
+                audioEl.src = resolved.previewUrl;
+                coverImg.src = resolved.artworkUrl;
+                spinner.className = "fa-solid fa-circle-check text-emerald-400";
+                sourceText.textContent = "256kbps 原声母带就绪";
+                // 静默预加载下一首曲目
+                if (index + 1 < SOUNDTRACKS.length) {
+                    fetchRealSoundtrack(SOUNDTRACKS[index + 1]);
+                }
+            } else {
+                spinner.className = "fa-solid fa-triangle-exclamation text-amber-400";
+                sourceText.textContent = "流媒体受限，请重试";
+            }
+        }
+
+        function unlockHint(num) {
+            document.getElementById(`hint${num}-content`).classList.remove('hidden');
+            document.getElementById(`hint${num}-btn`).classList.add('hidden');
+            hintsUsedInCurrentTrack++;
+        }
+
+        function submitMcAnswer(selectedOption, btnElement) {
+            if (hasAnsweredCurrent) return;
+            const track = SOUNDTRACKS[currentIndex];
+            const isCorrect = selectedOption === track.title;
+
+            const allBtns = document.querySelectorAll('.option-btn');
+            allBtns.forEach(btn => {
+                btn.disabled = true;
+                const icon = btn.querySelector('.option-icon');
+                const key = btn.querySelector('.option-key');
+                if (btn.dataset.option === track.title) {
+                    btn.className = OPTION_BASE_CLASS + " bg-emerald-500/15 border-2 border-emerald-500 scale-[1.01]";
+                    if (icon) icon.className = "option-icon fa-solid fa-circle-check text-lg text-emerald-400";
+                    if (key) key.className = "option-key w-8 h-8 rounded-lg bg-emerald-500 text-black font-bold text-sm flex items-center justify-center mono-font shrink-0";
+                } else if (btn === btnElement && !isCorrect) {
+                    btn.className = OPTION_BASE_CLASS + " bg-rose-500/15 border-2 border-rose-500 animate-[shake_0.35s_ease-in-out]";
+                    if (icon) icon.className = "option-icon fa-solid fa-circle-xmark text-lg text-rose-400";
+                    if (key) key.className = "option-key w-8 h-8 rounded-lg bg-rose-500 text-black font-bold text-sm flex items-center justify-center mono-font shrink-0";
+                } else {
+                    btn.className = OPTION_BASE_CLASS + " border-2 border-zinc-800 bg-zinc-950/60 opacity-35";
+                }
+            });
+
+            processAnswerResult(isCorrect, false);
+        }
+
+        function processAnswerResult(isCorrect, isTextBonus) {
+            hasAnsweredCurrent = true;
+            const track = SOUNDTRACKS[currentIndex];
+            const resolved = resolvedAudioCache[track.id] || {};
+
+            // 揭晓黑胶中心清晰专辑封面
+            const coverImg = document.getElementById('vinyl-cover-img');
+            const mysteryOverlay = document.getElementById('vinyl-mystery-overlay');
+            coverImg.classList.remove('blur-md', 'opacity-50');
+            mysteryOverlay.classList.add('hidden');
+
+            // 计算分数（含3秒/10秒盲听加成、手写加成与提示扣减）
+            let clipBonus = 0;
+            if (clipDurationLimit === 3) clipBonus = 30;
+            else if (clipDurationLimit === 30) clipBonus = -20;
+
+            const hintPenalty = hintsUsedInCurrentTrack * 10;
+            let earned = 0;
+
+            if (isCorrect) {
+                streak++;
+                correctCount++;
+                if (streak > maxStreak) maxStreak = streak;
+                earned = Math.max(40, 100 + clipBonus + (streak > 1 ? (streak - 1) * 15 : 0) + (isTextBonus ? 50 : 0) - hintPenalty);
+                score += earned;
+            } else {
+                streak = 0;
+            }
+
+            // 记录本题表现到 sessionHistory 用于六维雷达图计算
+            sessionHistory[currentIndex] = {
+                track: track,
+                isCorrect: isCorrect,
+                clipLimit: clipDurationLimit,
+                hintsUsed: hintsUsedInCurrentTrack,
+                isTextBonus: isTextBonus,
+                earnedScore: earned
+            };
+
+
+            // 展开原声详情与乐理赏析面板
+            const revealPanel = document.getElementById('reveal-panel');
+            const badge = document.getElementById('answer-status-badge');
+
+            if (isCorrect) {
+                badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-0.5 rounded-full mb-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+                badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> 回答正确`;
+            } else {
+                badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-0.5 rounded-full mb-1.5 bg-rose-500/20 text-rose-300 border border-rose-500/40";
+                badge.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> 答案揭晓`;
+            }
+
+            const pDim = DIMENSIONS[track.primaryDim]?.name || "交响史诗";
+            const sDim = DIMENSIONS[track.secondaryDim]?.name || "大师艺术";
+
+            document.getElementById('reveal-cover').src = resolved.artworkUrl || 'https://placehold.co/200x200/18181b/f59e0b?text=OST';
+            document.getElementById('reveal-title').textContent = `${track.title} (${track.enTitle})`;
+            document.getElementById('reveal-track-name').textContent = `🎵 校验通过音轨：${resolved.matchedTrackName || track.trackName} — ${resolved.matchedArtist || track.composer}`;
+            document.getElementById('reveal-meta').textContent = `${track.awardTag} · 作曲：${track.composer} (${track.year})`;
+            document.getElementById('reveal-dim-tags').textContent = `主维度：${pDim} / 次维度：${sDim}`;
+            document.getElementById('reveal-analysis').textContent = track.analysis;
+
+            const nextBtn = document.getElementById('next-track-btn');
+            if (currentIndex === SOUNDTRACKS.length - 1) {
+                nextBtn.innerHTML = `<span>生成电影音乐六维鉴赏图</span> <i class="fa-solid fa-chart-pie"></i>`;
+            } else {
+                nextBtn.innerHTML = `<span>下一首随机原声 (${currentIndex + 2}/${SOUNDTRACKS.length})</span> <i class="fa-solid fa-arrow-right"></i>`;
+            }
+
+            revealPanel.classList.remove('hidden');
+            revealPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function nextLevel() {
+            if (currentIndex < SOUNDTRACKS.length - 1) {
+                currentIndex++;
+                loadLevel(currentIndex).then(() => {
+                    audioEl.play().catch(() => {});
+                });
+            } else {
+                showFinalSummary();
+            }
+        }
+
+        // ==========================================
+        // 6. 电影音乐鉴赏六维雷达图计算与 Canvas 渲染
+        // ==========================================
+        function computeSixDimensionScores() {
+            const dimScores = {};
+            const dimWeights = {};
+
+            DIMENSION_KEYS.forEach(k => {
+                dimScores[k] = 0;
+                dimWeights[k] = 0;
+            });
+
+            // 遍历本局已答题目，结合主次维度、盲听切片难度(3s/10s/30s)和提示使用情况加权计算
+            sessionHistory.forEach(item => {
+                if (!item || !item.track) return;
+                const pDim = item.track.primaryDim;
+                const sDim = item.track.secondaryDim;
+
+                // 计算单题表现质量系数 (0 ~ 115)
+                let perf = 22; // 即使答错也有基础聆听感知值
+                if (item.isCorrect) {
+                    perf = 85;
+                    if (item.clipLimit === 3) perf += 15;
+                    else if (item.clipLimit === 10) perf += 8;
+                    if (item.hintsUsed === 0) perf += 10;
+                    else perf -= item.hintsUsed * 8;
+                    if (item.isTextBonus) perf += 8;
+                }
+                perf = Math.max(20, Math.min(100, perf));
+
+                if (pDim && dimScores[pDim] !== undefined) {
+                    dimScores[pDim] += perf * 1.0;
+                    dimWeights[pDim] += 1.0;
+                }
+                if (sDim && dimScores[sDim] !== undefined) {
+                    dimScores[sDim] += perf * 0.45;
+                    dimWeights[sDim] += 0.45;
+                }
+            });
+
+            // 归一化为 0-100 的六维指数
+            const finalMetrics = {};
+            DIMENSION_KEYS.forEach(k => {
+                if (dimWeights[k] > 0) {
+                    finalMetrics[k] = Math.round(dimScores[k] / dimWeights[k]);
+                } else {
+                    // 若当前尚未答到该维度题目，给一个基础待测值 45
+                    finalMetrics[k] = 45;
+                }
+            });
+
+            return finalMetrics;
+        }
+
+        function drawHexagonRadarChart(metrics) {
+            const canvas = document.getElementById('Aesthetic-radar-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const dpr = window.devicePixelRatio || 1;
+            const size = 320;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            ctx.scale(dpr, dpr);
+
+            ctx.clearRect(0, 0, size, size);
+
+            const cx = size / 2;
+            const cy = size / 2;
+            const maxRadius = 104;
+            const totalAxes = DIMENSION_KEYS.length;
+
+            // 1. 绘制 4 层同心正六边形网格
+            const levels = [0.25, 0.5, 0.75, 1.0];
+            levels.forEach((lv, idx) => {
+                const r = maxRadius * lv;
+                ctx.beginPath();
+                for (let i = 0; i < totalAxes; i++) {
+                    const angle = (Math.PI * 2 * i) / totalAxes - Math.PI / 2;
+                    const x = cx + r * Math.cos(angle);
+                    const y = cy + r * Math.sin(angle);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.strokeStyle = idx === levels.length - 1 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(161, 161, 170, 0.16)';
+                ctx.lineWidth = idx === levels.length - 1 ? 1.5 : 1;
+                ctx.stroke();
+
+                if (idx % 2 === 1) {
+                    ctx.fillStyle = 'rgba(245, 158, 11, 0.02)';
+                    ctx.fill();
+                }
+            });
+
+            // 2. 绘制 6 条从中心发散的轴线
+            for (let i = 0; i < totalAxes; i++) {
+                const angle = (Math.PI * 2 * i) / totalAxes - Math.PI / 2;
+                const x = cx + maxRadius * Math.cos(angle);
+                const y = cy + maxRadius * Math.sin(angle);
+
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(x, y);
+                ctx.strokeStyle = 'rgba(161, 161, 170, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // 3. 绘制玩家六维鉴赏数据多边形区域
+            const points = [];
+            for (let i = 0; i < totalAxes; i++) {
+                const key = DIMENSION_KEYS[i];
+                const val = Math.max(15, Math.min(100, metrics[key] || 45));
+                const r = (val / 100) * maxRadius;
+                const angle = (Math.PI * 2 * i) / totalAxes - Math.PI / 2;
+                points.push({
+                    x: cx + r * Math.cos(angle),
+                    y: cy + r * Math.sin(angle),
+                    val: val,
+                    dim: DIMENSIONS[key],
+                    angle: angle
+                });
+            }
+
+            ctx.beginPath();
+            points.forEach((p, idx) => {
+                if (idx === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            });
+            ctx.closePath();
+
+            const polyGrad = ctx.createRadialGradient(cx, cy, 8, cx, cy, maxRadius);
+            polyGrad.addColorStop(0, 'rgba(252, 211, 77, 0.45)');
+            polyGrad.addColorStop(0.7, 'rgba(245, 158, 11, 0.28)');
+            polyGrad.addColorStop(1, 'rgba(16, 185, 129, 0.22)');
+            ctx.fillStyle = polyGrad;
+            ctx.fill();
+
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+
+            // 4. 绘制顶点光晕与外围维度文字标签
+            points.forEach(p => {
+                // 顶点外发光圆
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#fcd34d';
+                ctx.fill();
+                ctx.strokeStyle = '#09090b';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // 标签位置计算
+                const labelRadius = maxRadius + 30;
+                const lx = cx + labelRadius * Math.cos(p.angle);
+                const ly = cy + labelRadius * Math.sin(p.angle);
+
+                ctx.font = '600 11px Inter, sans-serif';
+                ctx.fillStyle = '#f4f4f5';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.dim.shortLabel, lx, ly - 7);
+
+                ctx.font = '700 11px "JetBrains Mono", monospace';
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText(`${p.val}`, lx, ly + 8);
+            });
+        }
+
+        function showFinalSummary() {
+            const modal = document.getElementById('final-modal');
+            const answeredTotal = sessionHistory.filter(Boolean).length;
+
+            document.getElementById('report-progress-tag').textContent = `已完成 ${answeredTotal} / ${SOUNDTRACKS.length} 首盲听测评`;
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('final-correct').textContent = `${correctCount} / ${SOUNDTRACKS.length}`;
+            document.getElementById('final-streak').textContent = maxStreak;
+
+            const metrics = computeSixDimensionScores();
+
+            // 找出最强与次强维度，生成专属听觉人格头衔
+            const sortedDims = [...DIMENSION_KEYS].sort((a, b) => metrics[b] - metrics[a]);
+            const topDimKey = sortedDims[0];
+            const secDimKey = sortedDims[1];
+            const topDim = DIMENSIONS[topDimKey];
+            const secDim = DIMENSIONS[secDimKey];
+
+            const archetypeMap = {
+                symphonic: "黄金年代交响指挥家 · 银幕铜管主旋律捕手",
+                synth: "赛博声学建筑师 · 先锋合成器与空间脉冲敏锐者",
+                auteur: "欧洲三大电影节金耳朵 · 作者电影声画诗人",
+                eastern: "东方幻想音画知音 · 五声留白与动画交响鉴赏家",
+                jazz: "午夜霓虹律动猎手 · 爵士切分与复古摇滚行家",
+                minimal: "极简主义哲思聆听者 · 室内乐微观织体解码人"
+            };
+
+            let rankTitle = "殿堂级电影音乐金耳朵";
+            if (correctCount >= 9) rankTitle = "传奇影史声学宗师 · 绝对音感级鉴赏家";
+            else if (correctCount >= 7) rankTitle = "资深银幕交响鉴赏家 · 敏锐声学捕手";
+            else if (correctCount >= 4) rankTitle = "进阶原声黑胶收藏家 · 旋律记忆行家";
+            else rankTitle = "新锐银幕漫游聆听者 · 潜能待觉醒";
+
+            document.getElementById('final-rank-title').textContent = rankTitle;
+            document.getElementById('final-Archetype-sub').textContent = `主导审美倾向：${archetypeMap[topDimKey]}`;
+
+            document.getElementById('final-comment').textContent =
+                `通过本轮盲听测算，你在「${topDim.name}」(${metrics[topDimKey]}分) 与「${secDim.name}」(${metrics[secDimKey]}分) 两个声学维度展现出尤为突出的辨识敏锐度。你擅长从前奏的乐器音色颗粒感、空间混响深度以及和声色彩走向中迅速锁定电影的年代美学坐标。点击下方“再来随机十首”可继续探索100首殿堂曲库中尚未解锁的经典！`;
+
+            // 渲染右侧 6 个维度的进度条明细
+            const barsContainer = document.getElementById('dimension-bars-container');
+            barsContainer.innerHTML = '';
+            DIMENSION_KEYS.forEach(k => {
+                const d = DIMENSIONS[k];
+                const val = metrics[k];
+                const row = document.createElement('div');
+                row.innerHTML = `
+                    <div class="flex items-center justify-between text-xs mb-1">
+                        <span class="font-semibold text-zinc-200 flex items-center gap-1.5">
+                            <i class="fa-solid ${d.icon}" style="color:${d.color}"></i> ${d.fullName}
+                        </span>
+                        <span class="mono-font font-bold text-amber-400">${val} / 100</span>
+                    </div>
+                    <div class="w-full h-2 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+                        <div class="h-full rounded-full transition-all duration-700" style="width:${val}%; background:${d.color}"></div>
+                    </div>
+                `;
+                barsContainer.appendChild(row);
+            });
+
+            // 渲染本局 10 首歌单复盘列表（点击可直接跳回试听）
+            const reviewList = document.getElementById('session-review-list');
+            reviewList.innerHTML = '';
+            SOUNDTRACKS.forEach((t, idx) => {
+                const record = sessionHistory[idx];
+                const dInfo = DIMENSIONS[t.primaryDim];
+                const statusBadge = record
+                    ? (record.isCorrect
+                        ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">命中 +${record.earnedScore}</span>`
+                        : `<span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">未命中</span>`)
+                    : `<span class="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">未作答</span>`;
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 rounded-xl p-2.5 flex items-center justify-between gap-2 cursor-pointer transition";
+                itemDiv.onclick = () => {
+                    closeFinalModal();
+                    currentIndex = idx;
+                    loadLevel(idx).then(() => audioEl.play().catch(() => {}));
+                };
+                itemDiv.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-6 h-6 rounded-lg bg-zinc-950 border border-zinc-700 text-[11px] mono-font text-amber-400 flex items-center justify-center shrink-0">${idx + 1}</span>
+                        <div class="truncate">
+                            <div class="text-xs font-bold text-white truncate">${ record ? `${escapeHtml(t.title)} · ${escapeHtml(t.trackName)}` : `第 ${idx + 1} 题（待揭晓 · ${dInfo.name}）` }</div>
+                            <div class="text-[11px] text-zinc-400 truncate">${ record ? `${escapeHtml(t.composer)} (${escapeHtml(t.year)})` : escapeHtml(t.timeSig) }</div>
+                        </div>
+                    </div>
+                    <div class="shrink-0 flex items-center gap-1.5">
+                        ${statusBadge}
+                        <i class="fa-solid fa-play text-[10px] text-amber-400 ml-1"></i>
+                    </div>
+                `;
+                reviewList.appendChild(itemDiv);
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            // 下一帧绘制六边形雷达图
+            requestAnimationFrame(() => {
+                drawHexagonRadarChart(metrics);
+            });
+        }
+
+        function openRadarPreviewModal() {
+            showFinalSummary();
+        }
+
+        function closeFinalModal() {
+            const modal = document.getElementById('final-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // ==========================================
+        // 7. 100首殿堂曲库图鉴弹窗与重新随机洗牌
+        // ==========================================
+        function openPoolCatalogModal() {
+            const modal = document.getElementById('catalog-modal');
+            const grid = document.getElementById('catalog-grid');
+            grid.innerHTML = '';
+            const seenIds = getSeenIds();
+
+            DIMENSION_KEYS.forEach(dimKey => {
+                const dimInfo = DIMENSIONS[dimKey];
+                const tracks = MASTER_SOUNDTRACK_POOL.filter(t => t.primaryDim === dimKey);
+                const seenInDim = tracks.filter(t => seenIds.includes(t.id)).length;
+                const card = document.createElement('div');
+                card.className = "bg-zinc-950 border border-zinc-800 rounded-2xl p-3.5 flex flex-col justify-between";
+                const itemsHtml = tracks.map(t => {
+                    const inSession = SOUNDTRACKS.some(s => s.id === t.id);
+                    const answered = sessionHistory.find(h => h && h.track && h.track.id === t.id);
+                    const wasSeen = seenIds.includes(t.id);
+                    const displayLabel = (answered || wasSeen)
+                        ? `<span class="text-amber-300 font-medium">${t.title}</span> <span class="text-zinc-500">(${t.year})</span>`
+                        : `<span class="text-zinc-400">${t.year}年 · ${t.awardTag.replace('🏆 ', '').replace('🎬 ', '').split('·')[0]}</span>`;
+                    return `
+                        <li class="text-xs flex items-center justify-between py-1 border-b border-zinc-900 last:border-0">
+                            <span class="truncate pr-2">${displayLabel}</span>
+                            ${inSession ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 shrink-0">本局抽中</span>` : (wasSeen ? `<span class="text-[10px] text-emerald-400 shrink-0">已探索</span>` : `<span class="text-[10px] text-zinc-600 shrink-0">待盲听</span>`)}
+                        </li>
+                    `;
+                }).join('');
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-zinc-800">
+                            <span class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                                <i class="fa-solid ${dimInfo.icon}"></i> ${dimInfo.fullName}
+                            </span>
+                            <span class="text-[11px] mono-font text-emerald-400">${seenInDim}/${tracks.length}首</span>
+                        </div>
+                        <ul class="space-y-0.5 max-h-56 overflow-y-auto pr-1">${itemsHtml}</ul>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closePoolCatalogModal() {
+            const modal = document.getElementById('catalog-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        // 键盘快捷键：1-4 作答，空格 播放/暂停，回车 下一首
+        document.addEventListener('keydown', (e) => {
+            if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+            if (document.getElementById('final-modal')?.classList.contains('flex')) return;
+            if (!hasAnsweredCurrent && /^[1-4]$/.test(e.key)) {
+                const btn = document.querySelectorAll('.option-btn')[Number(e.key) - 1];
+                if (btn) { e.preventDefault(); btn.click(); }
+            } else if (e.key === ' ' && e.target === document.body) {
+                e.preventDefault();
+                togglePlay();
+            } else if (e.key === 'Enter' && hasAnsweredCurrent) {
+                e.preventDefault();
+                nextLevel();
+            }
+        });
+
+        // 重新随机抽取 10 首并开启新一轮
+        function reshuffleNewSession() {
+            closeFinalModal();
+            SOUNDTRACKS = buildRandomTenPlaylist();
+            sessionHistory = [];
+            currentIndex = 0;
+            score = 0;
+            streak = 0;
+            maxStreak = 0;
+            correctCount = 0;
+            loadLevel(0);
+        }
+
+        function restartGame() {
+            reshuffleNewSession();
+        }
+
+        window.onload = function () {
+            updateUnlockedCounterUI();
+            SOUNDTRACKS = buildRandomTenPlaylist();
+            loadLevel(0);
+            startVisualizerLoop();
+        };
+    </script>
+</body>
+</html>
