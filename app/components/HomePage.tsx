@@ -9,6 +9,7 @@ const LINKS = [
   { href: "https://notes.zeyuanfeng.com",  label: "Notes",  desc: "Personal notes & thoughts" },
   { href: "https://resume.zeyuanfeng.com", label: "Resume", desc: "Work experience & skills"   },
   { href: "https://promo.zeyuanfeng.com",  label: "Promos", desc: "Referrals & promotions"     },
+  { href: "/project",                      label: "Projects", desc: "Side projects & games"    },
 ];
 
 const HERO_Y  = 0.40;
@@ -90,7 +91,7 @@ export default function HomePage() {
         <div className="px-6 pb-16">
           <div
             ref={cardsRef}
-            className="max-w-lg mx-auto grid grid-cols-1 sm:grid-cols-3 gap-3 pointer-events-auto"
+            className="max-w-2xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 pointer-events-auto"
             style={{
               ["--card-bg"     as string]: "rgba(255,255,255,0.60)",
               ["--card-border" as string]: "rgba(200,215,230,0.70)",
@@ -102,8 +103,7 @@ export default function HomePage() {
               <a
                 key={href}
                 href={href}
-                target="_blank"
-                rel="noopener noreferrer"
+                {...(href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 className="rounded-2xl px-5 py-4 backdrop-blur-sm transition-all shadow-sm"
                 style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}
               >
