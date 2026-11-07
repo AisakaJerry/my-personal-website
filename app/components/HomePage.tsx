@@ -9,7 +9,7 @@ const LINKS = [
   { href: "https://notes.zeyuanfeng.com",  label: "Notes",  desc: "Personal notes & thoughts" },
   { href: "https://resume.zeyuanfeng.com", label: "Resume", desc: "Work experience & skills"   },
   { href: "https://promo.zeyuanfeng.com",  label: "Promos", desc: "Referrals & promotions"     },
-  { href: "/project",                      label: "Projects", desc: "Side projects & games"    },
+  { href: "/project/",                     label: "Projects", desc: "Side projects & games"    },
 ];
 
 const HERO_Y  = 0.40;
