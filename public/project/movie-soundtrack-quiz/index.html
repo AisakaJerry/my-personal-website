@@ -68,6 +68,12 @@
             transform: rotate(-10deg);
         }
 
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
         .gold-glow {
             box-shadow: 0 0 30px -8px rgba(245, 158, 11, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.08);
         }
@@ -131,7 +137,6 @@
                             已探索 0 / 100 首
                         </span>
                     </div>
-                    <p class="text-xs text-zinc-400 hidden sm:block">严格音轨校验防串歌 · 优先抽取未听曲目 · 通关生成个人六维鉴赏雷达图</p>
                 </div>
             </div>
 
@@ -151,19 +156,6 @@
                     <div class="text-center">
                         <div class="text-[10px] uppercase tracking-wider text-zinc-400">随机题序</div>
                         <div class="font-bold text-xs sm:text-sm text-white mono-font"><span id="current-level-num" class="text-amber-400">1</span> / <span id="total-level-num">10</span></div>
-                    </div>
-                    <div class="h-5 w-px bg-zinc-800"></div>
-                    <div class="text-center">
-                        <div class="text-[10px] uppercase tracking-wider text-zinc-400">总积分</div>
-                        <div id="score-display" class="font-bold text-xs sm:text-sm text-amber-400 mono-font">0</div>
-                    </div>
-                    <div class="h-5 w-px bg-zinc-800"></div>
-                    <div class="text-center">
-                        <div class="text-[10px] uppercase tracking-wider text-zinc-400">连胜</div>
-                        <div class="font-bold text-xs sm:text-sm text-emerald-400 flex items-center justify-center gap-1 mono-font">
-                            <i class="fa-solid fa-fire text-[11px]"></i>
-                            <span id="streak-display">0</span>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -227,18 +219,17 @@
             <!-- 盲听时长挑战档位切换 -->
             <div class="w-full mt-2 mb-3">
                 <div class="flex items-center justify-between text-[11px] text-zinc-400 mb-1.5 px-1">
-                    <span>选择盲听切片时长（越短得分倍率越高）：</span>
-                    <span id="clip-multiplier-label" class="text-amber-400 font-semibold mono-font">标准切片 (基准分)</span>
+                    <span>盲听切片时长</span>
                 </div>
                 <div class="grid grid-cols-3 gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800">
                     <button id="dur-btn-3" onclick="setClipLimit(3)" class="py-1.5 px-2 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-bolt text-amber-400"></i> 3秒前奏 <span class="text-[10px] opacity-75">(+30)</span>
+                        <i class="fa-solid fa-bolt text-amber-400"></i> 3秒前奏
                     </button>
                     <button id="dur-btn-10" onclick="setClipLimit(10)" class="py-1.5 px-2 rounded-lg text-xs font-semibold transition bg-amber-500 text-black flex items-center justify-center gap-1">
                         <i class="fa-solid fa-headphones"></i> 10秒切片
                     </button>
                     <button id="dur-btn-30" onclick="setClipLimit(30)" class="py-1.5 px-2 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-compact-disc"></i> 30秒完整 <span class="text-[10px] opacity-75">(-20)</span>
+                        <i class="fa-solid fa-compact-disc"></i> 30秒完整
                     </button>
                 </div>
             </div>
@@ -290,103 +281,25 @@
             <audio id="real-audio-player" crossorigin="anonymous" preload="auto"></audio>
         </section>
 
-        <!-- 右侧：零剧透乐理线索、作答与深度赏析区 (占7列) -->
-        <section class="lg:col-span-7 flex flex-col gap-5">
-
-            <!-- 零剧透纯乐理/元数据线索卡片 -->
-            <div class="bg-zinc-900/75 border border-zinc-800/90 rounded-2xl p-5">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <h2 class="text-sm font-semibold text-zinc-100 flex items-center gap-2">
-                        <i class="fa-solid fa-sliders text-amber-400"></i>
-                        零剧透 · 纯声学与获奖荣誉线索
-                    </h2>
-                    <span id="award-honor-tag" class="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
-                        <i class="fa-solid fa-trophy mr-1 text-amber-400"></i>影史殿堂代表作
-                    </span>
-                </div>
-
-                <!-- 线索 I：声学与配器织体（默认展示，纯谈声音） -->
-                <div class="bg-zinc-950/80 border border-zinc-800/90 rounded-xl p-3.5 mb-3">
-                    <div class="text-xs text-amber-400 font-semibold mb-1 flex items-center justify-between">
-                        <span><i class="fa-solid fa-wave-square mr-1.5"></i>线索 I · 配器织体与声学听感（免费开放）</span>
-                        <span id="track-time-sig" class="mono-font text-[11px] text-zinc-400"></span>
-                    </div>
-                    <p id="acoustic-clue-text" class="text-sm text-zinc-200 leading-relaxed">
-                        正在加载配器特征...
-                    </p>
-                </div>
-
-                <!-- 线索 II & III：可按需解锁的年代类型与作曲家签名 -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div class="bg-zinc-950/50 border border-zinc-800/80 rounded-xl p-3.5 flex flex-col justify-between">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-medium text-zinc-400">
-                                <i class="fa-solid fa-calendar-days mr-1.5 text-amber-500"></i>线索 II · 年代与电影流派
-                            </span>
-                            <button id="hint1-btn" onclick="unlockHint(1)" class="text-xs px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition">
-                                解锁线索 (-10分)
-                            </button>
-                        </div>
-                        <p id="hint1-content" class="text-xs sm:text-sm text-zinc-200 mt-2 hidden leading-relaxed font-medium"></p>
-                    </div>
-
-                    <div class="bg-zinc-950/50 border border-zinc-800/80 rounded-xl p-3.5 flex flex-col justify-between">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-medium text-zinc-400">
-                                <i class="fa-solid fa-pen-nib mr-1.5 text-amber-500"></i>线索 III · 作曲家音乐指纹
-                            </span>
-                            <button id="hint2-btn" onclick="unlockHint(2)" class="text-xs px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition">
-                                解锁线索 (-15分)
-                            </button>
-                        </div>
-                        <p id="hint2-content" class="text-xs sm:text-sm text-zinc-200 mt-2 hidden leading-relaxed font-medium"></p>
-                    </div>
-                </div>
-            </div>
+        <!-- 右侧：作答（主）→ 揭晓 → 线索（辅） (占7列) -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
 
             <!-- 作答面板 -->
-            <div id="quiz-panel" class="bg-zinc-900/75 border border-zinc-800/90 rounded-2xl p-5">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-                    <h2 class="text-base font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-compact-disc text-amber-400"></i>
-                        这段真实原声出自哪部作品？
-                    </h2>
-
-                    <!-- 四选一 vs 极客手写盲猜 -->
-                    <div class="flex items-center bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
-                        <button id="mode-mc-btn" onclick="switchInputMode('mc')" class="px-2.5 py-1 rounded-md bg-amber-500 text-black font-semibold transition">
-                            同题材四选一
-                        </button>
-                        <button id="mode-text-btn" onclick="switchInputMode('text')" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white transition">
-                            手写盲猜 (+50分)
-                        </button>
-                    </div>
+            <div id="quiz-panel" class="bg-zinc-900/80 border border-amber-500/25 rounded-2xl p-5 sm:p-6 gold-glow">
+                <div class="flex items-baseline justify-between gap-3 mb-5">
+                    <h2 class="serif-title text-xl sm:text-2xl font-bold text-white">这段原声出自哪部作品？</h2>
+                    <span class="hidden sm:inline text-[11px] text-zinc-500 mono-font shrink-0">按 1–4 快速作答</span>
                 </div>
-
-                <!-- 四个高迷惑度同类选项 -->
                 <div id="mc-options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <!-- 动态渲染 -->
                 </div>
-
-                <!-- 手写输入模式 -->
-                <div id="text-input-container" class="hidden">
-                    <div class="flex gap-2">
-                        <input id="movie-guess-input" type="text" placeholder="输入中文、英文或日文片名（如：攻壳机动队 / Ghost in the Shell）..." 
-                            class="flex-1 bg-zinc-950 border border-zinc-700 focus:border-amber-500 rounded-xl px-4 py-3 text-sm text-white outline-none transition"
-                            onkeydown="if(event.key === 'Enter') submitTextGuess()">
-                        <button onclick="submitTextGuess()" class="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm transition">
-                            提交验证
-                        </button>
-                    </div>
-                    <p class="text-xs text-zinc-400 mt-2">支持中/英/日片名或曲名模糊匹配，手写盲猜正确可额外获得 +50 荣誉加分！</p>
-                </div>
             </div>
 
-            <!-- 答后揭晓：原声专辑信息与纯乐理深度解析 (默认隐藏) -->
-            <div id="reveal-panel" class="hidden bg-gradient-to-b from-zinc-900 to-zinc-950 border border-amber-500/40 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <!-- 答后揭晓：原声专辑信息与乐理解析 (默认隐藏) -->
+            <div id="reveal-panel" class="hidden bg-gradient-to-b from-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4">
                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
                     <div class="flex items-center gap-4">
-                        <img id="reveal-cover" src="" alt="OST Cover" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-amber-500/40 shadow-lg">
+                        <img id="reveal-cover" src="" alt="OST Cover" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-zinc-700 shadow-lg">
                         <div>
                             <div id="answer-status-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full mb-1.5"></div>
                             <h3 id="reveal-title" class="serif-title text-lg sm:text-xl font-bold text-white"></h3>
@@ -400,7 +313,6 @@
                     </button>
                 </div>
 
-                <!-- 纯乐理与配器结构赏析（无剧透） -->
                 <div class="bg-zinc-900/90 border border-zinc-800 rounded-xl p-4">
                     <div class="flex items-center justify-between mb-1.5">
                         <div class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -412,24 +324,27 @@
                 </div>
             </div>
 
-            <!-- 底部扩展：自由搜索全网原声加入盲听队列 -->
-            <div class="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-4 sm:p-5">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-                    <div class="text-xs font-semibold text-zinc-300 flex items-center gap-2">
-                        <i class="fa-solid fa-magnifying-glass-plus text-amber-400"></i>
-                        自由点播 / 扩充题库：实时搜索任意电影或动画原声加入挑战
-                    </div>
-                    <span class="text-[11px] text-zinc-400">直连 iTunes 全球 OST 曲库</span>
+            <!-- 线索（弱化，辅助信息） -->
+            <div class="border border-zinc-800/60 rounded-xl px-4 py-3 text-zinc-400">
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <span class="text-[11px] uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
+                        <i class="fa-regular fa-lightbulb"></i> 线索
+                    </span>
+                    <span id="award-honor-tag" class="text-[11px] text-zinc-500 truncate"></span>
                 </div>
-                <div class="flex gap-2">
-                    <input id="custom-ost-Input" type="text" placeholder="试试搜索：Yoko Kanno / Hiroyuki Sawano / 久石让 / 坂本龙一 / 塞尔达..." 
-                        class="flex-1 bg-zinc-950 border border-zinc-800 focus:border-amber-500 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white outline-none transition"
-                        onkeydown="if(event.key === 'Enter') searchCustomOst()">
-                    <button onclick="searchCustomOst()" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-zinc-700 font-semibold text-xs sm:text-sm transition shrink-0">
-                        搜索原声
+                <p id="acoustic-clue-text" class="text-xs leading-relaxed text-zinc-400">正在加载配器特征...</p>
+                <p id="track-time-sig" class="mono-font text-[10px] text-zinc-600 mt-1"></p>
+
+                <div class="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <button id="hint1-btn" onclick="unlockHint(1)" class="text-zinc-500 hover:text-zinc-300 underline-offset-2 hover:underline transition">
+                        <i class="fa-regular fa-calendar mr-1"></i>年代与流派
+                    </button>
+                    <button id="hint2-btn" onclick="unlockHint(2)" class="text-zinc-500 hover:text-zinc-300 underline-offset-2 hover:underline transition">
+                        <i class="fa-solid fa-pen-nib mr-1"></i>作曲家指纹
                     </button>
                 </div>
-                <div id="custom-search-results" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 hidden"></div>
+                <p id="hint1-content" class="text-xs text-zinc-400 mt-1.5 hidden leading-relaxed"></p>
+                <p id="hint2-content" class="text-xs text-zinc-400 mt-1.5 hidden leading-relaxed"></p>
             </div>
 
         </section>
@@ -1522,6 +1437,8 @@
         let correctCount = 0;
         let hasAnsweredCurrent = false;
         let currentInputMode = 'mc';
+        const OPTION_BASE_CLASS = "option-btn group w-full text-left px-4 py-4 sm:py-5 rounded-xl flex items-center gap-3.5 transition-all duration-200";
+        const OPTION_IDLE_CLASS = "bg-zinc-950/90 border-2 border-zinc-800 hover:border-amber-500 hover:bg-zinc-900 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-500/10 active:scale-[0.98] focus-visible:outline-none focus-visible:border-amber-400";
         let clipDurationLimit = 10;
         let clipStartPoint = 0;
         let hintsUsedInCurrentTrack = 0;
@@ -1785,15 +1702,6 @@
                 }
             });
 
-            const multLabel = document.getElementById('clip-multiplier-label');
-            if (seconds === 3) {
-                multLabel.textContent = "极客盲听 (+30额外奖励)";
-            } else if (seconds === 10) {
-                multLabel.textContent = "标准切片 (基准分)";
-            } else {
-                multLabel.textContent = "完整30秒试听 (-20分)";
-            }
-
             if (!audioEl.paused && audioEl.currentTime > clipStartPoint + clipDurationLimit) {
                 audioEl.currentTime = clipStartPoint;
             }
@@ -1933,7 +1841,7 @@
             document.getElementById('progress-bar').style.width = `${progressPercent}%`;
             document.getElementById('track-badge').textContent = `STAGE ${index + 1 < 10 ? '0' + (index + 1) : index + 1}/${SOUNDTRACKS.length}`;
             document.getElementById('dimension-badge').innerHTML = `<i class="fa-solid ${dimInfo.icon} mr-1"></i>${dimInfo.name}维度`;
-            document.getElementById('award-honor-tag').innerHTML = `<i class="fa-solid fa-trophy mr-1 text-amber-400"></i>${track.awardTag || '影史殿堂代表作'}`;
+            document.getElementById('award-honor-tag').textContent = track.awardTag || '';
 
             // 重置唱片中心模糊遮罩（防止封面剧透）
             const coverImg = document.getElementById('vinyl-cover-img');
@@ -1959,7 +1867,6 @@
 
             // 隐藏上一题解析，重置输入框
             document.getElementById('reveal-panel').classList.add('hidden');
-            document.getElementById('movie-guess-input').value = '';
 
             // 渲染四个同题材高迷惑度选项
             const shuffledOptions = shuffleArray(track.options);
@@ -1967,18 +1874,14 @@
             mcContainer.innerHTML = '';
 
             shuffledOptions.forEach((opt, i) => {
-                const letters = ['A', 'B', 'C', 'D'];
                 const btn = document.createElement('button');
-                btn.className = "option-btn w-full text-left p-4 rounded-xl bg-zinc-950/90 hover:bg-zinc-800/90 border border-zinc-800 hover:border-amber-500/50 transition flex items-center justify-between group";
+                btn.className = OPTION_BASE_CLASS + " " + OPTION_IDLE_CLASS;
+                btn.dataset.option = opt;
                 btn.onclick = () => submitMcAnswer(opt, btn);
                 btn.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="w-7 h-7 rounded-lg bg-zinc-900 group-hover:bg-amber-500 group-hover:text-black text-zinc-400 font-bold text-xs flex items-center justify-center border border-zinc-700 transition mono-font">
-                            ${letters[i]}
-                        </span>
-                        <span class="font-semibold text-sm sm:text-base text-zinc-100 group-hover:text-amber-300 transition">${escapeHtml(opt)}</span>
-                    </div>
-                    <i class="fa-solid fa-chevron-right text-xs text-zinc-600 group-hover:text-amber-400 transition"></i>
+                    <span class="option-key w-8 h-8 rounded-lg bg-zinc-900 group-hover:bg-amber-500 group-hover:text-black text-zinc-400 font-bold text-sm flex items-center justify-center border border-zinc-700 group-hover:border-amber-400 transition mono-font shrink-0">${i + 1}</span>
+                    <span class="flex-1 font-semibold text-base sm:text-lg text-zinc-100 group-hover:text-white transition">${escapeHtml(opt)}</span>
+                    <i class="option-icon fa-solid fa-chevron-right text-sm text-zinc-600 group-hover:text-amber-400 group-hover:translate-x-0.5 transition"></i>
                 `;
                 mcContainer.appendChild(btn);
             });
@@ -2015,27 +1918,6 @@
             hintsUsedInCurrentTrack++;
         }
 
-        function switchInputMode(mode) {
-            currentInputMode = mode;
-            const mcBtn = document.getElementById('mode-mc-btn');
-            const textBtn = document.getElementById('mode-text-btn');
-            const mcContainer = document.getElementById('mc-options-container');
-            const textContainer = document.getElementById('text-input-container');
-
-            if (mode === 'mc') {
-                mcBtn.className = "px-2.5 py-1 rounded-md bg-amber-500 text-black font-semibold transition";
-                textBtn.className = "px-2.5 py-1 rounded-md text-zinc-400 hover:text-white transition";
-                mcContainer.classList.remove('hidden');
-                textContainer.classList.add('hidden');
-            } else {
-                textBtn.className = "px-2.5 py-1 rounded-md bg-amber-500 text-black font-semibold transition";
-                mcBtn.className = "px-2.5 py-1 rounded-md text-zinc-400 hover:text-white transition";
-                mcContainer.classList.add('hidden');
-                textContainer.classList.remove('hidden');
-                document.getElementById('movie-guess-input').focus();
-            }
-        }
-
         function submitMcAnswer(selectedOption, btnElement) {
             if (hasAnsweredCurrent) return;
             const track = SOUNDTRACKS[currentIndex];
@@ -2044,31 +1926,22 @@
             const allBtns = document.querySelectorAll('.option-btn');
             allBtns.forEach(btn => {
                 btn.disabled = true;
-                if (btn.innerText.includes(track.title)) {
-                    btn.className = "option-btn w-full text-left p-4 rounded-xl bg-emerald-500/20 border-2 border-emerald-500 text-emerald-300 flex items-center justify-between";
+                const icon = btn.querySelector('.option-icon');
+                const key = btn.querySelector('.option-key');
+                if (btn.dataset.option === track.title) {
+                    btn.className = OPTION_BASE_CLASS + " bg-emerald-500/15 border-2 border-emerald-500 scale-[1.01]";
+                    if (icon) icon.className = "option-icon fa-solid fa-circle-check text-lg text-emerald-400";
+                    if (key) key.className = "option-key w-8 h-8 rounded-lg bg-emerald-500 text-black font-bold text-sm flex items-center justify-center mono-font shrink-0";
                 } else if (btn === btnElement && !isCorrect) {
-                    btn.className = "option-btn w-full text-left p-4 rounded-xl bg-rose-500/20 border-2 border-rose-500 text-rose-300 flex items-center justify-between";
+                    btn.className = OPTION_BASE_CLASS + " bg-rose-500/15 border-2 border-rose-500 animate-[shake_0.35s_ease-in-out]";
+                    if (icon) icon.className = "option-icon fa-solid fa-circle-xmark text-lg text-rose-400";
+                    if (key) key.className = "option-key w-8 h-8 rounded-lg bg-rose-500 text-black font-bold text-sm flex items-center justify-center mono-font shrink-0";
                 } else {
-                    btn.classList.add('opacity-40');
+                    btn.className = OPTION_BASE_CLASS + " border-2 border-zinc-800 bg-zinc-950/60 opacity-35";
                 }
             });
 
             processAnswerResult(isCorrect, false);
-        }
-
-        function submitTextGuess() {
-            if (hasAnsweredCurrent) return;
-            const rawInput = document.getElementById('movie-guess-input').value.trim().toLowerCase();
-            if (!rawInput) return;
-
-            const track = SOUNDTRACKS[currentIndex];
-            const cleanInput = rawInput.replace(/[《》\s·.,!！:：]/g, '');
-            const isCorrect = track.aliases.some(alias => {
-                const cleanAlias = alias.toLowerCase().replace(/[《》\s·.,!！:：]/g, '');
-                return cleanInput.includes(cleanAlias) || cleanAlias.includes(cleanInput);
-            });
-
-            processAnswerResult(isCorrect, true);
         }
 
         function processAnswerResult(isCorrect, isTextBonus) {
@@ -2110,8 +1983,6 @@
                 earnedScore: earned
             };
 
-            document.getElementById('score-display').textContent = score;
-            document.getElementById('streak-display').textContent = streak;
 
             // 展开原声详情与乐理赏析面板
             const revealPanel = document.getElementById('reveal-panel');
@@ -2119,10 +1990,10 @@
 
             if (isCorrect) {
                 badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-0.5 rounded-full mb-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
-                badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> 盲听命中 (+${earned}分) ${clipBonus > 0 ? `· 3秒切片加成` : (clipBonus < 0 ? `· 完整试听 -20` : '')} ${isTextBonus ? '· 手写盲猜加成' : ''}`;
+                badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> 回答正确`;
             } else {
                 badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-0.5 rounded-full mb-1.5 bg-rose-500/20 text-rose-300 border border-rose-500/40";
-                badge.innerHTML = `<i class="fa-solid fa-circle-info"></i> 答案揭晓 · 已解锁完整30秒原声与乐理解析`;
+                badge.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> 答案揭晓`;
             }
 
             const pDim = DIMENSIONS[track.primaryDim]?.name || "交响史诗";
@@ -2496,103 +2367,25 @@
             modal.classList.remove('flex');
         }
 
-        // ==========================================
-        // 8. 自由点播 / 自定义搜索 OST 加入题库
-        // ==========================================
-        async function searchCustomOst() {
-            const inputEl = document.getElementById('custom-ost-Input');
-            const query = inputEl.value.trim();
-            if (!query) return;
-
-            const resultsContainer = document.getElementById('custom-search-results');
-            resultsContainer.classList.remove('hidden');
-            resultsContainer.innerHTML = `<div class="col-span-2 text-xs text-zinc-400 py-2"><i class="fa-solid fa-circle-notch fa-spin text-amber-400 mr-1.5"></i>正在搜索 "${escapeHtml(query)}" 的官方原声带...</div>`;
-
-            try {
-                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=4`);
-                const data = await res.json();
-                if (!data.results || data.results.length === 0) {
-                    resultsContainer.innerHTML = `<div class="col-span-2 text-xs text-zinc-400 py-2">未找到匹配的原声录音，请尝试英文或日文关键词。</div>`;
-                    return;
-                }
-
-                resultsContainer.innerHTML = '';
-                data.results.forEach(item => {
-                    if (!item.previewUrl) return;
-                    const card = document.createElement('div');
-                    card.className = "bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 flex items-center justify-between gap-2";
-                    card.innerHTML = `
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <img src="${escapeHtml(item.artworkUrl60)}" class="w-10 h-10 rounded-lg object-cover shrink-0">
-                            <div class="truncate">
-                                <div class="text-xs font-bold text-white truncate">${escapeHtml(item.trackName)}</div>
-                                <div class="text-[11px] text-zinc-400 truncate">${escapeHtml(item.artistName)} · ${escapeHtml(item.collectionName || '')}</div>
-                            </div>
-                        </div>
-                        <button class="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black text-xs font-semibold transition shrink-0">
-                            立即试听挑战
-                        </button>
-                    `;
-                    card.querySelector('button').onclick = () => {
-                        addCustomTrackAndJump(item);
-                    };
-                    resultsContainer.appendChild(card);
-                });
-            } catch (e) {
-                resultsContainer.innerHTML = `<div class="col-span-2 text-xs text-rose-400 py-2">搜索请求失败，请稍后重试。</div>`;
-            }
-        }
-
         function escapeHtml(str) {
             return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
 
-        function addCustomTrackAndJump(itunesItem) {
-            const newId = 900 + SOUNDTRACKS.length + 1;
-            const collectionTitle = itunesItem.collectionName ? `《${itunesItem.collectionName.split('(')[0].trim()}》` : `《${itunesItem.trackName}》`;
-            const highResCover = itunesItem.artworkUrl100 ? itunesItem.artworkUrl100.replace('100x100bb', '600x600bb') : '';
-
-            const customTrack = {
-                id: newId,
-                primaryDim: "symphonic",
-                secondaryDim: "auteur",
-                title: collectionTitle,
-                enTitle: itunesItem.trackName,
-                trackName: itunesItem.trackName,
-                searchQueries: [itunesItem.trackName],
-                matchKeywords: [itunesItem.trackName],
-                climaxOffset: 5,
-                aliases: [collectionTitle, itunesItem.trackName, itunesItem.artistName],
-                composer: itunesItem.artistName,
-                year: itunesItem.releaseDate ? itunesItem.releaseDate.substring(0, 4) : "经典原声",
-                timeSig: `${itunesItem.primaryGenreName || 'Soundtrack'} · 官方母带切片`,
-                acousticClue: `来自曲库实时点播的原声录音（流派：${itunesItem.primaryGenreName || '原声配乐'}），请仔细辨别其配器音色与和声走向。`,
-                eraHint: `发行年代：${itunesItem.releaseDate ? itunesItem.releaseDate.substring(0, 4) : '未知'}年 · 专辑关联作品`,
-                composerHint: `创作者 / 演奏家：${itunesItem.artistName}`,
-                analysis: `本曲为实时检索自 Apple Music 官方曲库的《${itunesItem.trackName}》，收录于专辑《${itunesItem.collectionName || 'Original Soundtrack'}》。`,
-                options: [
-                    collectionTitle,
-                    "《星际穿越》",
-                    "《攻壳机动队》",
-                    "《千与千寻》"
-                ]
-            };
-
-            resolvedAudioCache[newId] = {
-                previewUrl: itunesItem.previewUrl,
-                artworkUrl: highResCover,
-                matchedTrackName: itunesItem.trackName,
-                matchedArtist: itunesItem.artistName,
-                collectionName: itunesItem.collectionName
-            };
-
-            SOUNDTRACKS.push(customTrack);
-            currentIndex = SOUNDTRACKS.length - 1;
-            document.getElementById('custom-search-results').classList.add('hidden');
-            loadLevel(currentIndex).then(() => {
-                audioEl.play().catch(() => {});
-            });
-        }
+        // 键盘快捷键：1-4 作答，空格 播放/暂停，回车 下一首
+        document.addEventListener('keydown', (e) => {
+            if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+            if (document.getElementById('final-modal')?.classList.contains('flex')) return;
+            if (!hasAnsweredCurrent && /^[1-4]$/.test(e.key)) {
+                const btn = document.querySelectorAll('.option-btn')[Number(e.key) - 1];
+                if (btn) { e.preventDefault(); btn.click(); }
+            } else if (e.key === ' ' && e.target === document.body) {
+                e.preventDefault();
+                togglePlay();
+            } else if (e.key === 'Enter' && hasAnsweredCurrent) {
+                e.preventDefault();
+                nextLevel();
+            }
+        });
 
         // 重新随机抽取 10 首并开启新一轮
         function reshuffleNewSession() {
@@ -2604,8 +2397,6 @@
             streak = 0;
             maxStreak = 0;
             correctCount = 0;
-            document.getElementById('score-display').textContent = "0";
-            document.getElementById('streak-display').textContent = "0";
             loadLevel(0);
         }
 
